@@ -17,9 +17,9 @@ from electrum.plugin import Device, DeviceInfo, runs_in_hwd_thread
 from electrum.simple_config import SimpleConfig
 from electrum.json_db import StoredDict
 from electrum.storage import get_derivation_used_for_hw_device_encryption
-from electrum.bitcoin import OnchainOutputType
+from electrum.ravencoin import OnchainOutputType
 
-import electrum.bitcoin as bitcoin
+import electrum.ravencoin as bitcoin
 import electrum.ecc as ecc
 
 from ..hw_wallet import HW_PluginBase, HardwareClientBase

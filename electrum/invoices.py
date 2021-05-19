@@ -9,7 +9,7 @@ from .i18n import _
 from .util import age, InvoiceError
 from .lnaddr import lndecode, LnAddr
 from . import constants
-from .bitcoin import COIN, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC
+from .ravencoin import COIN, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC
 from .transaction import PartialTxOutput
 
 if TYPE_CHECKING:

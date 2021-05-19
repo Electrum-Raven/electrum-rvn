@@ -35,7 +35,7 @@ from urllib.parse import urljoin
 from urllib.parse import quote
 from aiohttp import ClientResponse
 
-from electrum import ecc, constants, keystore, version, bip32, bitcoin
+from electrum import ecc, constants, keystore, version, bip32, ravencoin
 from electrum.bip32 import BIP32Node, xpub_type
 from electrum.crypto import sha256
 from electrum.transaction import PartialTxOutput, PartialTxInput, PartialTransaction, Transaction
@@ -425,9 +425,9 @@ def make_billing_address(wallet, num, addr_type):
     child_node = usernode.subkey_at_public_derivation([num])
     pubkey = child_node.eckey.get_public_key_bytes(compressed=True)
     if addr_type == 'legacy':
-        return bitcoin.public_key_to_p2pkh(pubkey)
+        return ravencoin.public_key_to_p2pkh(pubkey)
     elif addr_type == 'segwit':
-        return bitcoin.public_key_to_p2wpkh(pubkey)
+        return ravencoin.public_key_to_p2wpkh(pubkey)
     else:
         raise ValueError(f'unexpected billing type: {addr_type}')
 

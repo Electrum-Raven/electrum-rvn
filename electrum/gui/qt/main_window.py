@@ -51,9 +51,9 @@ from PyQt5.QtWidgets import (QMessageBox, QComboBox, QSystemTrayIcon, QTabWidget
 
 import electrum
 from electrum.gui import messages
-from electrum import (keystore, ecc, constants, util, bitcoin, commands,
+from electrum import (keystore, ecc, constants, util, ravencoin, commands,
                       paymentrequest, lnutil)
-from electrum.bitcoin import COIN, is_address
+from electrum.ravencoin import COIN, is_address
 from electrum.plugin import run_hook, BasePlugin
 from electrum.i18n import _
 from electrum.util import (format_time,
@@ -2225,7 +2225,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             'electrum': electrum,
             'daemon': self.gui_object.daemon,
             'util': util,
-            'bitcoin': bitcoin,
+            'bitcoin': ravencoin,
             'lnutil': lnutil,
         })
 
@@ -2620,7 +2620,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.logger.exception('')
             self.show_message(repr(e))
             return
-        xtype = bitcoin.deserialize_privkey(pk)[0]
+        xtype = ravencoin.deserialize_privkey(pk)[0]
         d = WindowModalDialog(self, _("Private key"))
         d.setMinimumSize(600, 150)
         vbox = QVBoxLayout()
@@ -2644,7 +2644,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
     def do_sign(self, address, message, signature, password):
         address  = address.text().strip()
         message = message.toPlainText().strip()
-        if not bitcoin.is_address(address):
+        if not ravencoin.is_address(address):
             self.show_message(_('Invalid Bitcoin address.'))
             return
         if self.wallet.is_watching_only():
@@ -2672,7 +2672,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
     def do_verify(self, address, message, signature):
         address  = address.text().strip()
         message = message.toPlainText().strip().encode('utf-8')
-        if not bitcoin.is_address(address):
+        if not ravencoin.is_address(address):
             self.show_message(_('Invalid Bitcoin address.'))
             return
         try:
@@ -3079,7 +3079,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
         def get_address():
             addr = str(address_e.text()).strip()
-            if bitcoin.is_address(addr):
+            if ravencoin.is_address(addr):
                 return addr
 
         def get_pk(*, raise_on_error=False):

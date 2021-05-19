@@ -58,8 +58,8 @@ from .util import (NotEnoughFunds, UserCancelled, profiler,
                    InvalidPassword, format_time, timestamp_to_datetime, Satoshis,
                    Fiat, bfh, bh2u, TxMinedInfo, quantize_feerate, create_bip21_uri, OrderedDictWithIndex)
 from .simple_config import SimpleConfig, FEE_RATIO_HIGH_WARNING, FEERATE_WARNING_HIGH_FEE
-from .bitcoin import COIN, TYPE_ADDRESS
-from .bitcoin import is_address, address_to_script, is_minikey, relayfee, dust_threshold
+from .ravencoin import COIN, TYPE_ADDRESS
+from .ravencoin import is_address, address_to_script, is_minikey, relayfee, dust_threshold
 from .crypto import sha256d
 from . import keystore
 from .keystore import (load_keystore, Hardware_KeyStore, KeyStore, KeyStoreWithMPK,
@@ -67,7 +67,7 @@ from .keystore import (load_keystore, Hardware_KeyStore, KeyStore, KeyStoreWithM
 from .util import multisig_type
 from .storage import StorageEncryptionVersion, WalletStorage
 from .wallet_db import WalletDB
-from . import transaction, bitcoin, coinchooser, paymentrequest, ecc, bip32
+from . import transaction, ravencoin, coinchooser, paymentrequest, ecc, bip32
 from .transaction import (Transaction, TxInput, UnknownTxinType, TxOutput,
                           PartialTransaction, PartialTxInput, PartialTxOutput, TxOutpoint)
 from .plugin import run_hook
@@ -107,11 +107,11 @@ class BumpFeeStrategy(enum.Enum):
 async def _append_utxos_to_inputs(*, inputs: List[PartialTxInput], network: 'Network',
                                   pubkey: str, txin_type: str, imax: int) -> None:
     if txin_type in ('p2pkh', 'p2wpkh', 'p2wpkh-p2sh'):
-        address = bitcoin.pubkey_to_address(txin_type, pubkey)
-        scripthash = bitcoin.address_to_scripthash(address)
+        address = ravencoin.pubkey_to_address(txin_type, pubkey)
+        scripthash = ravencoin.address_to_scripthash(address)
     elif txin_type == 'p2pk':
-        script = bitcoin.public_key_to_p2pk_script(pubkey)
-        scripthash = bitcoin.script_to_scripthash(script)
+        script = ravencoin.public_key_to_p2pk_script(pubkey)
+        scripthash = ravencoin.script_to_scripthash(script)
     else:
         raise Exception(f'unexpected txin_type to sweep: {txin_type}')
 
@@ -119,7 +119,7 @@ async def _append_utxos_to_inputs(*, inputs: List[PartialTxInput], network: 'Net
         prev_tx_raw = await network.get_transaction(item['tx_hash'])
         prev_tx = Transaction(prev_tx_raw)
         prev_txout = prev_tx.outputs()[item['tx_pos']]
-        if scripthash != bitcoin.script_to_scripthash(prev_txout.scriptpubkey.hex()):
+        if scripthash != ravencoin.script_to_scripthash(prev_txout.scriptpubkey.hex()):
             raise Exception('scripthash mismatch when sweeping')
         prevout_str = item['tx_hash'] + ':%d' % item['tx_pos']
         prevout = TxOutpoint.from_str(prevout_str)
@@ -130,7 +130,7 @@ async def _append_utxos_to_inputs(*, inputs: List[PartialTxInput], network: 'Net
         txin.pubkeys = [bfh(pubkey)]
         txin.num_sig = 1
         if txin_type == 'p2wpkh-p2sh':
-            txin.redeem_script = bfh(bitcoin.p2wpkh_nested_script(pubkey))
+            txin.redeem_script = bfh(ravencoin.p2wpkh_nested_script(pubkey))
         inputs.append(txin)
 
     u = await network.listunspent_for_scripthash(scripthash)
@@ -157,7 +157,7 @@ async def sweep_preparations(privkeys, network: 'Network', imax=100):
     keypairs = {}
     async with TaskGroup() as group:
         for sec in privkeys:
-            txin_type, privkey, compressed = bitcoin.deserialize_privkey(sec)
+            txin_type, privkey, compressed = ravencoin.deserialize_privkey(sec)
             await group.spawn(find_utxos_for_privkey(txin_type, privkey, compressed))
             # do other lookups to increase support coverage
             if is_minikey(sec):
@@ -187,7 +187,7 @@ async def sweep(
     inputs, keypairs = await sweep_preparations(privkeys, network, imax)
     total = sum(txin.value_sats() for txin in inputs)
     if fee is None:
-        outputs = [PartialTxOutput(scriptpubkey=bfh(bitcoin.address_to_script(to_address)),
+        outputs = [PartialTxOutput(scriptpubkey=bfh(ravencoin.address_to_script(to_address)),
                                    value=total)]
         tx = PartialTransaction.from_io(inputs, outputs)
         fee = config.estimate_fee(tx.estimated_size())
@@ -196,7 +196,7 @@ async def sweep(
     if total - fee < dust_threshold(network):
         raise Exception(_('Not enough funds on address.') + '\nTotal: %d satoshis\nFee: %d\nDust Threshold: %d'%(total, fee, dust_threshold(network)))
 
-    outputs = [PartialTxOutput(scriptpubkey=bfh(bitcoin.address_to_script(to_address)),
+    outputs = [PartialTxOutput(scriptpubkey=bfh(ravencoin.address_to_script(to_address)),
                                value=total - fee)]
     if locktime is None:
         locktime = get_locktime_for_new_transaction(network)
@@ -425,7 +425,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         addrs = self.get_receiving_addresses()
         if len(addrs) > 0:
             addr = str(addrs[0])
-            if not bitcoin.is_address(addr):
+            if not ravencoin.is_address(addr):
                 neutered_addr = addr[:5] + '..' + addr[-2:]
                 raise WalletFileException(f'The addresses in this wallet are not bitcoin addresses.\n'
                                           f'e.g. {neutered_addr} (length: {len(addr)})')
@@ -572,7 +572,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         index = self.get_address_index(address)
         pk, compressed = self.keystore.get_private_key(index, password)
         txin_type = self.get_txin_type(address)
-        serialized_privkey = bitcoin.serialize_privkey(pk, compressed, txin_type)
+        serialized_privkey = ravencoin.serialize_privkey(pk, compressed, txin_type)
         return serialized_privkey
 
     def export_private_key_for_path(self, path: Union[Sequence[int], str], password: Optional[str]) -> str:
@@ -864,7 +864,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         relevant_txs = []
         with self.transaction_lock:
             for invoice_scriptpubkey, invoice_amt in invoice_amounts.items():
-                scripthash = bitcoin.script_to_scripthash(invoice_scriptpubkey.hex())
+                scripthash = ravencoin.script_to_scripthash(invoice_scriptpubkey.hex())
                 prevouts_and_values = self.db.get_prevouts_by_scripthash(scripthash)
                 total_received = 0
                 for prevout, v in prevouts_and_values:
@@ -968,7 +968,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                     item.update(fiat_fields)
                 else:
                     timestamp = item['timestamp'] or now
-                    fiat_value = value / Decimal(bitcoin.COIN) * fx.timestamp_rate(timestamp)
+                    fiat_value = value / Decimal(ravencoin.COIN) * fx.timestamp_rate(timestamp)
                     item['fiat_value'] = Fiat(fiat_value, fx.ccy)
                     item['fiat_default'] = True
         return transactions
@@ -2278,7 +2278,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
             assert isinstance(req, OnchainInvoice)
             addr = req.get_address()
             if sanity_checks:
-                if not bitcoin.is_address(addr):
+                if not ravencoin.is_address(addr):
                     raise Exception(_('Invalid Bitcoin address.'))
                 if not self.is_mine(addr):
                     raise Exception(_('Address not in wallet.'))
@@ -2616,7 +2616,7 @@ class Simple_Wallet(Abstract_Wallet):
             return None
         if txin_type == 'p2wpkh-p2sh':
             pubkey = self.get_public_key(address)
-            return bitcoin.p2wpkh_nested_script(pubkey)
+            return ravencoin.p2wpkh_nested_script(pubkey)
         if txin_type == 'address':
             return None
         raise UnknownTxinType(f'unexpected txin_type {txin_type}')
@@ -2682,7 +2682,7 @@ class Imported_Wallet(Simple_Wallet):
         good_addr = []  # type: List[str]
         bad_addr = []  # type: List[Tuple[str, str]]
         for address in addresses:
-            if not bitcoin.is_address(address):
+            if not ravencoin.is_address(address):
                 bad_addr.append((address, _('invalid address')))
                 continue
             if self.db.has_imported_address(address):
@@ -2729,9 +2729,9 @@ class Imported_Wallet(Simple_Wallet):
         self.db.remove_imported_address(address)
         if pubkey:
             # delete key iff no other address uses it (e.g. p2pkh and p2wpkh for same key)
-            for txin_type in bitcoin.WIF_SCRIPT_TYPES.keys():
+            for txin_type in ravencoin.WIF_SCRIPT_TYPES.keys():
                 try:
-                    addr2 = bitcoin.pubkey_to_address(txin_type, pubkey)
+                    addr2 = ravencoin.pubkey_to_address(txin_type, pubkey)
                 except NotImplementedError:
                     pass
                 else:
@@ -2770,7 +2770,7 @@ class Imported_Wallet(Simple_Wallet):
             if txin_type not in ('p2pkh', 'p2wpkh', 'p2wpkh-p2sh'):
                 bad_keys.append((key, _('not implemented type') + f': {txin_type}'))
                 continue
-            addr = bitcoin.pubkey_to_address(txin_type, pubkey)
+            addr = ravencoin.pubkey_to_address(txin_type, pubkey)
             good_addr.append(addr)
             self.db.add_imported_address(addr, {'type':txin_type, 'pubkey':pubkey})
             self.add_address(addr)
@@ -2912,7 +2912,7 @@ class Deterministic_Wallet(Abstract_Wallet):
             path = convert_bip32_path_to_list_of_uint32(path)
         pk, compressed = self.keystore.get_private_key(path, password)
         txin_type = self.get_txin_type()  # assumes no mixed-scripts in wallet
-        return bitcoin.serialize_privkey(pk, compressed, txin_type)
+        return ravencoin.serialize_privkey(pk, compressed, txin_type)
 
     def get_public_keys_with_deriv_info(self, address: str):
         der_suffix = self.get_address_index(address)
@@ -3057,7 +3057,7 @@ class Standard_Wallet(Simple_Deterministic_Wallet):
 
     def pubkeys_to_address(self, pubkeys):
         pubkey = pubkeys[0]
-        return bitcoin.pubkey_to_address(self.txin_type, pubkey)
+        return ravencoin.pubkey_to_address(self.txin_type, pubkey)
 
 
 class Multisig_Wallet(Deterministic_Wallet):
@@ -3073,7 +3073,7 @@ class Multisig_Wallet(Deterministic_Wallet):
 
     def pubkeys_to_address(self, pubkeys):
         redeem_script = self.pubkeys_to_scriptcode(pubkeys)
-        return bitcoin.redeem_script_to_address(self.txin_type, redeem_script)
+        return ravencoin.redeem_script_to_address(self.txin_type, redeem_script)
 
     def pubkeys_to_scriptcode(self, pubkeys: Sequence[str]) -> str:
         return transaction.multisig_script(sorted(pubkeys), self.m)
@@ -3085,7 +3085,7 @@ class Multisig_Wallet(Deterministic_Wallet):
         if txin_type == 'p2sh':
             return scriptcode
         elif txin_type == 'p2wsh-p2sh':
-            return bitcoin.p2wsh_nested_script(scriptcode)
+            return ravencoin.p2wsh_nested_script(scriptcode)
         elif txin_type == 'p2wsh':
             return None
         raise UnknownTxinType(f'unexpected txin_type {txin_type}')

@@ -33,7 +33,7 @@ from aiorpcx import TaskGroup, run_in_thread, RPCError
 from . import util
 from .transaction import Transaction, PartialTransaction
 from .util import bh2u, make_aiohttp_session, NetworkJobOnDefaultServer, random_shuffled_copy
-from .bitcoin import address_to_scripthash, is_address
+from .ravencoin import address_to_scripthash, is_address
 from .logging import Logger
 from .interface import GracefulDisconnect, NetworkTimeout
 

@@ -7,7 +7,7 @@ from electrum import util
 from electrum import WalletStorage, Wallet
 from electrum.wallet_db import WalletDB
 from electrum.util import format_satoshis
-from electrum.bitcoin import is_address, COIN
+from electrum.ravencoin import is_address, COIN
 from electrum.transaction import PartialTxOutput
 from electrum.network import TxBroadcastError, BestEffortRequestFailed
 

@@ -11,12 +11,12 @@ from typing import Optional, TYPE_CHECKING
 import random
 import bitstring
 
-from .bitcoin import hash160_to_b58_address, b58_address_to_hash160, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC
+from .ravencoin import hash160_to_b58_address, b58_address_to_hash160, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC
 from .segwit_addr import bech32_encode, bech32_decode, CHARSET
 from . import segwit_addr
 from . import constants
 from . import ecc
-from .bitcoin import COIN
+from .ravencoin import COIN
 
 if TYPE_CHECKING:
     from .lnutil import LnFeatures
@@ -129,8 +129,8 @@ def parse_fallback(fallback, currency):
 
 # Map of classical and witness address prefixes
 base58_prefix_map = {
-    constants.BitcoinMainnet.SEGWIT_HRP : (constants.BitcoinMainnet.ADDRTYPE_P2PKH, constants.BitcoinMainnet.ADDRTYPE_P2SH),
-    constants.BitcoinTestnet.SEGWIT_HRP : (constants.BitcoinTestnet.ADDRTYPE_P2PKH, constants.BitcoinTestnet.ADDRTYPE_P2SH)
+    constants.RavencoinMainnet.SEGWIT_HRP : (constants.RavencoinMainnet.ADDRTYPE_P2PKH, constants.RavencoinMainnet.ADDRTYPE_P2SH),
+    constants.RavencoinTestnet.SEGWIT_HRP : (constants.RavencoinTestnet.ADDRTYPE_P2PKH, constants.RavencoinTestnet.ADDRTYPE_P2SH)
 }
 
 def is_p2pkh(currency, prefix):

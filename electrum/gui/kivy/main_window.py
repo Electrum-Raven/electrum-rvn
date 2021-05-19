@@ -445,7 +445,7 @@ class ElectrumWindow(App, Logger):
             self.send_screen.do_clear()
 
     def on_qr(self, data):
-        from electrum.bitcoin import is_address
+        from electrum.ravencoin import is_address
         data = data.strip()
         if is_address(data):
             self.set_URI(data)

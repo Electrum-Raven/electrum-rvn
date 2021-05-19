@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Dict, Set
 
 import aiorpcx
 
-from . import bitcoin
+from . import ravencoin
 from . import ecc
 from . import constants
 from .util import bh2u, bfh, NetworkJobOnDefaultServer
@@ -152,7 +152,7 @@ class LNChannelVerifier(NetworkJobOnDefaultServer):
         # check funding output
         chan_ann_msg = self.unverified_channel_info[short_channel_id]
         redeem_script = funding_output_script_from_keys(chan_ann_msg['bitcoin_key_1'], chan_ann_msg['bitcoin_key_2'])
-        expected_address = bitcoin.redeem_script_to_address('p2wsh', redeem_script)
+        expected_address = ravencoin.redeem_script_to_address('p2wsh', redeem_script)
         try:
             actual_output = tx.outputs()[short_channel_id.output_index]
         except IndexError:

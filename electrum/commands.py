@@ -41,8 +41,8 @@ from typing import Optional, TYPE_CHECKING, Dict, List
 from .import util, ecc
 from .util import (bfh, bh2u, format_satoshis, json_decode, json_normalize,
                    is_hash256_str, is_hex_str, to_bytes)
-from . import bitcoin
-from .bitcoin import is_address,  hash_160, COIN
+from . import ravencoin
+from .ravencoin import is_address,  hash_160, COIN
 from .bip32 import BIP32Node
 from .i18n import _
 from .transaction import (Transaction, multisig_script, TxOutput, PartialTransaction, PartialTxOutput,
@@ -333,7 +333,7 @@ class Commands:
         """Return the transaction history of any address. Note: This is a
         walletless server query, results are not checked by SPV.
         """
-        sh = bitcoin.address_to_scripthash(address)
+        sh = ravencoin.address_to_scripthash(address)
         return await self.network.get_history_for_scripthash(sh)
 
     @command('w')
@@ -353,7 +353,7 @@ class Commands:
         """Returns the UTXO list of any address. Note: This
         is a walletless server query, results are not checked by SPV.
         """
-        sh = bitcoin.address_to_scripthash(address)
+        sh = ravencoin.address_to_scripthash(address)
         return await self.network.listunspent_for_scripthash(sh)
 
     @command('')
@@ -379,7 +379,7 @@ class Commands:
                 txin.nsequence = nsequence
             sec = txin_dict.get('privkey')
             if sec:
-                txin_type, privkey, compressed = bitcoin.deserialize_privkey(sec)
+                txin_type, privkey, compressed = ravencoin.deserialize_privkey(sec)
                 pubkey = ecc.ECPrivkey(privkey).get_public_key_hex(compressed=compressed)
                 keypairs[pubkey] = privkey, compressed
                 txin.script_type = txin_type
@@ -399,10 +399,10 @@ class Commands:
         # TODO this command should be split in two... (1) *_with_wallet, (2) *_with_privkey
         tx = tx_from_any(tx)
         if privkey:
-            txin_type, privkey2, compressed = bitcoin.deserialize_privkey(privkey)
+            txin_type, privkey2, compressed = ravencoin.deserialize_privkey(privkey)
             pubkey = ecc.ECPrivkey(privkey2).get_public_key_bytes(compressed=compressed)
             for txin in tx.inputs():
-                if txin.address and txin.address == bitcoin.pubkey_to_address(txin_type, pubkey.hex()):
+                if txin.address and txin.address == ravencoin.pubkey_to_address(txin_type, pubkey.hex()):
                     txin.pubkeys = [pubkey]
                     txin.script_type = txin_type
             tx.sign({pubkey.hex(): (privkey2, compressed)})
@@ -428,7 +428,7 @@ class Commands:
         """Create multisig address"""
         assert isinstance(pubkeys, list), (type(num), type(pubkeys))
         redeem_script = multisig_script(pubkeys, num)
-        address = bitcoin.hash160_to_p2sh(hash_160(bfh(redeem_script)))
+        address = ravencoin.hash160_to_p2sh(hash_160(bfh(redeem_script)))
         return {'address':address, 'redeemScript':redeem_script}
 
     @command('w')
@@ -509,7 +509,7 @@ class Commands:
         """Return the balance of any address. Note: This is a walletless
         server query, results are not checked by SPV.
         """
-        sh = bitcoin.address_to_scripthash(address)
+        sh = ravencoin.address_to_scripthash(address)
         out = await self.network.get_balance_for_scripthash(sh)
         out["confirmed"] =  str(Decimal(out["confirmed"])/COIN)
         out["unconfirmed"] =  str(Decimal(out["unconfirmed"])/COIN)

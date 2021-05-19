@@ -41,7 +41,7 @@ from qrcode import exceptions
 
 from electrum.simple_config import SimpleConfig
 from electrum.util import quantize_feerate
-from electrum.bitcoin import base_encode, NLOCKTIME_BLOCKHEIGHT_MAX
+from electrum.ravencoin import base_encode, NLOCKTIME_BLOCKHEIGHT_MAX
 from electrum.i18n import _
 from electrum.plugin import run_hook
 from electrum import simple_config

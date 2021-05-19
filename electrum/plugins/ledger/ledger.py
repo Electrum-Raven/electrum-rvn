@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 from electrum import ecc
 from electrum import bip32
 from electrum.crypto import hash_160
-from electrum.bitcoin import int_to_hex, var_int, is_segwit_script_type, is_b58_address
+from electrum.ravencoin import int_to_hex, var_int, is_segwit_script_type, is_b58_address
 from electrum.bip32 import BIP32Node, convert_bip32_intpath_to_strpath
 from electrum.i18n import _
 from electrum.keystore import Hardware_KeyStore

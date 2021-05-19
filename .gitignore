@@ -3,9 +3,11 @@
 *.swp
 build/
 dist/
+tmp/
 *.egg/
-Electrum.egg-info/
-electrum/locale/
+Electrum-RVN.egg-info/
+electrum/locale/*
+!electrum/locale/messages.pot
 .devlocaltmp/
 *_trial_temp
 packages
@@ -14,14 +16,11 @@ env/
 bin/
 /app.fil
 .idea
-.mypy_cache
-.vscode
-electrum_data
-.DS_Store
+electrum/currencies.json
 
 # icons
-electrum/gui/kivy/theming/atlas/*.png
-electrum/gui/kivy/theming/atlas/*.atlas
+electrum/gui/kivy/theming/light-0.png
+electrum/gui/kivy/theming/light.atlas
 
 # tests/tox
 .tox/
@@ -32,18 +31,6 @@ electrum/gui/kivy/theming/atlas/*.atlas
 # build workspaces
 contrib/build-wine/tmp/
 contrib/build-wine/fresh_clone/
-contrib/build-linux/sdist/fresh_clone/
 contrib/build-linux/appimage/build/
 contrib/build-linux/appimage/.cache/
 contrib/android_debug.keystore
-contrib/android/android_debug.keystore
-contrib/secp256k1/
-contrib/zbar/
-contrib/osx/build-venv/
-
-# shared objects
-electrum/*.so
-electrum/*.so.0
-electrum/*.dll
-electrum/*.dylib
-contrib/osx/*.dylib

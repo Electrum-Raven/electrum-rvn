@@ -40,15 +40,15 @@ import itertools
 import binascii
 import copy
 
-from . import ecc, bitcoin, constants, segwit_addr, bip32
+from . import ecc, ravencoin, constants, segwit_addr, bip32
 from .bip32 import BIP32Node
 from .util import profiler, to_bytes, bh2u, bfh, chunks, is_hex_str
-from .bitcoin import (TYPE_ADDRESS, TYPE_SCRIPT, hash_160,
-                      hash160_to_p2sh, hash160_to_p2pkh, hash_to_segwit_addr,
-                      var_int, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC, COIN,
-                      int_to_hex, push_script, b58_address_to_hash160,
-                      opcodes, add_number_to_script, base_decode, is_segwit_script_type,
-                      base_encode, construct_witness, construct_script)
+from .ravencoin import (TYPE_ADDRESS, TYPE_SCRIPT, hash_160,
+                        hash160_to_p2sh, hash160_to_p2pkh, hash_to_segwit_addr,
+                        var_int, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC, COIN,
+                        int_to_hex, push_script, b58_address_to_hash160,
+                        opcodes, add_number_to_script, base_decode, is_segwit_script_type,
+                        base_encode, construct_witness, construct_script)
 from .crypto import sha256d
 from .logging import get_logger
 
@@ -101,7 +101,7 @@ class TxOutput:
 
     @classmethod
     def from_address_and_value(cls, address: str, value: Union[int, str]) -> Union['TxOutput', 'PartialTxOutput']:
-        return cls(scriptpubkey=bfh(bitcoin.address_to_script(address)),
+        return cls(scriptpubkey=bfh(ravencoin.address_to_script(address)),
                    value=value)
 
     def serialize_to_network(self) -> bytes:
@@ -725,14 +725,14 @@ class Transaction:
         elif _type in ['p2wpkh', 'p2wsh']:
             return ''
         elif _type == 'p2wpkh-p2sh':
-            redeem_script = bitcoin.p2wpkh_nested_script(pubkeys[0])
+            redeem_script = ravencoin.p2wpkh_nested_script(pubkeys[0])
             return construct_script([redeem_script])
         elif _type == 'p2wsh-p2sh':
             if estimate_size:
                 witness_script = ''
             else:
                 witness_script = self.get_preimage_script(txin)
-            redeem_script = bitcoin.p2wsh_nested_script(witness_script)
+            redeem_script = ravencoin.p2wsh_nested_script(witness_script)
             return construct_script([redeem_script])
         raise UnknownTxinType(f'cannot construct scriptSig for txin_type: {_type}')
 
@@ -753,10 +753,10 @@ class Transaction:
         elif txin.script_type in ['p2pkh', 'p2wpkh', 'p2wpkh-p2sh']:
             pubkey = pubkeys[0]
             pkh = bh2u(hash_160(bfh(pubkey)))
-            return bitcoin.pubkeyhash_to_p2pkh_script(pkh)
+            return ravencoin.pubkeyhash_to_p2pkh_script(pkh)
         elif txin.script_type == 'p2pk':
             pubkey = pubkeys[0]
-            return bitcoin.public_key_to_p2pk_script(pubkey)
+            return ravencoin.public_key_to_p2pk_script(pubkey)
         else:
             raise UnknownTxinType(f'cannot construct preimage_script for txin_type: {txin.script_type}')
 
@@ -894,7 +894,7 @@ class Transaction:
     @classmethod
     def estimated_output_size_for_address(cls, address: str) -> int:
         """Return an estimate of serialized output size in bytes."""
-        script = bitcoin.address_to_script(address)
+        script = ravencoin.address_to_script(address)
         return cls.estimated_output_size_for_script(script)
 
     @classmethod
@@ -960,7 +960,7 @@ class Transaction:
         return set(self._script_to_output_idx[script])  # copy
 
     def get_output_idxs_from_address(self, addr: str) -> Set[int]:
-        script = bitcoin.address_to_script(addr)
+        script = ravencoin.address_to_script(addr)
         return self.get_output_idxs_from_scriptpubkey(script)
 
     def output_value_for_address(self, addr):
@@ -1245,11 +1245,11 @@ class PartialTxInput(TxInput, PSBTSection):
                                                   f"If a redeemScript is provided, the scriptPubKey must be for that redeemScript")
         if self.witness_script:
             if self.redeem_script:
-                if self.redeem_script != bfh(bitcoin.p2wsh_nested_script(self.witness_script.hex())):
+                if self.redeem_script != bfh(ravencoin.p2wsh_nested_script(self.witness_script.hex())):
                     raise PSBTInputConsistencyFailure(f"PSBT input validation: "
                                                       f"If a witnessScript is provided, the redeemScript must be for that witnessScript")
             elif self.address:
-                if self.address != bitcoin.script_to_p2wsh(self.witness_script.hex()):
+                if self.address != ravencoin.script_to_p2wsh(self.witness_script.hex()):
                     raise PSBTInputConsistencyFailure(f"PSBT input validation: "
                                                       f"If a witnessScript is provided, the scriptPubKey must be for that witnessScript")
 
@@ -1362,7 +1362,7 @@ class PartialTxInput(TxInput, PSBTSection):
     @property
     def scriptpubkey(self) -> Optional[bytes]:
         if self._trusted_address is not None:
-            return bfh(bitcoin.address_to_script(self._trusted_address))
+            return bfh(ravencoin.address_to_script(self._trusted_address))
         if self.utxo:
             out_idx = self.prevout.out_idx
             return self.utxo.outputs()[out_idx].scriptpubkey
@@ -1463,7 +1463,7 @@ class PartialTxInput(TxInput, PSBTSection):
         """Whether this input is native segwit. None means inconclusive."""
         if self._is_native_segwit is None:
             if self.address:
-                self._is_native_segwit = bitcoin.is_segwit_address(self.address)
+                self._is_native_segwit = ravencoin.is_segwit_address(self.address)
         return self._is_native_segwit
 
     def is_p2sh_segwit(self) -> Optional[bool]:
@@ -1472,7 +1472,7 @@ class PartialTxInput(TxInput, PSBTSection):
             def calc_if_p2sh_segwit_now():
                 if not (self.address and self.redeem_script):
                     return None
-                if self.address != bitcoin.hash160_to_p2sh(hash_160(self.redeem_script)):
+                if self.address != ravencoin.hash160_to_p2sh(hash_160(self.redeem_script)):
                     # not p2sh address
                     return False
                 try:

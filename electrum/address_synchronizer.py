@@ -30,8 +30,8 @@ from typing import TYPE_CHECKING, Dict, Optional, Set, Tuple, NamedTuple, Sequen
 
 from aiorpcx import TaskGroup
 
-from . import bitcoin, util
-from .bitcoin import COINBASE_MATURITY
+from . import ravencoin, util
+from .ravencoin import COINBASE_MATURITY
 from .util import profiler, bfh, TxMinedInfo, UnrelatedTransactionException, with_lock
 from .transaction import Transaction, TxOutput, TxInput, PartialTxInput, TxOutpoint, PartialTransaction
 from .synchronizer import Synchronizer
@@ -323,7 +323,7 @@ class AddressSynchronizer(Logger):
             for n, txo in enumerate(tx.outputs()):
                 v = txo.value
                 ser = tx_hash + ':%d'%n
-                scripthash = bitcoin.script_to_scripthash(txo.scriptpubkey.hex())
+                scripthash = ravencoin.script_to_scripthash(txo.scriptpubkey.hex())
                 self.db.add_prevout_by_scripthash(scripthash, prevout=TxOutpoint.from_str(ser), value=v)
                 addr = self.get_txout_address(txo)
                 if addr and self.is_mine(addr):
@@ -386,7 +386,7 @@ class AddressSynchronizer(Logger):
             self.unverified_tx.pop(tx_hash, None)
             if tx:
                 for idx, txo in enumerate(tx.outputs()):
-                    scripthash = bitcoin.script_to_scripthash(txo.scriptpubkey.hex())
+                    scripthash = ravencoin.script_to_scripthash(txo.scriptpubkey.hex())
                     prevout = TxOutpoint(bfh(tx_hash), idx)
                     self.db.remove_prevout_by_scripthash(scripthash, prevout=prevout, value=txo.value)
 

@@ -871,14 +871,14 @@ class InvalidBitcoinURI(Exception): pass
 # TODO rename to parse_bip21_uri or similar
 def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
     """Raises InvalidBitcoinURI on malformed URI."""
-    from . import bitcoin
-    from .bitcoin import COIN, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC
+    from . import ravencoin
+    from .ravencoin import COIN, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC
 
     if not isinstance(uri, str):
         raise InvalidBitcoinURI(f"expected string, not {repr(uri)}")
 
     if ':' not in uri:
-        if not bitcoin.is_address(uri):
+        if not ravencoin.is_address(uri):
             raise InvalidBitcoinURI("Not a bitcoin address")
         return {'address': uri}
 
@@ -900,7 +900,7 @@ def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
 
     out = {k: v[0] for k, v in pq.items()}
     if address:
-        if not bitcoin.is_address(address):
+        if not ravencoin.is_address(address):
             raise InvalidBitcoinURI(f"Invalid bitcoin address: {address}")
         out['address'] = address
     if 'amount' in out:
@@ -932,7 +932,7 @@ def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
             raise InvalidBitcoinURI(f"failed to parse 'exp' field: {repr(e)}") from e
     if 'sig' in out:
         try:
-            out['sig'] = bh2u(bitcoin.base_decode(out['sig'], base=58))
+            out['sig'] = bh2u(ravencoin.base_decode(out['sig'], base=58))
         except Exception as e:
             raise InvalidBitcoinURI(f"failed to parse 'sig' field: {repr(e)}") from e
 
@@ -958,8 +958,8 @@ def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
 
 def create_bip21_uri(addr, amount_sat: Optional[int], message: Optional[str],
                      *, extra_query_params: Optional[dict] = None) -> str:
-    from . import bitcoin
-    if not bitcoin.is_address(addr):
+    from . import ravencoin
+    if not ravencoin.is_address(addr):
         return ""
     if extra_query_params is None:
         extra_query_params = {}
