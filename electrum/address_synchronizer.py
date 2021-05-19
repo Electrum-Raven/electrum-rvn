@@ -21,7 +21,6 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import asyncio
 import threading
 import asyncio
 import itertools
@@ -33,11 +32,10 @@ from aiorpcx import TaskGroup
 from . import ravencoin, util
 from .ravencoin import COINBASE_MATURITY
 from .util import profiler, bfh, TxMinedInfo, UnrelatedTransactionException, with_lock
-from .transaction import Transaction, TxOutput, TxInput, PartialTxInput, TxOutpoint, PartialTransaction
+from .transaction import Transaction, TxOutput, TxInput, PartialTxInput, TxOutpoint, PartialTransaction, AssetMeta, RavenValue
 from .synchronizer import Synchronizer
 from .verifier import SPV
 from .blockchain import hash_header
-from .i18n import _
 from .logging import Logger
 
 if TYPE_CHECKING:
@@ -54,16 +52,16 @@ TX_HEIGHT_UNCONFIRMED = 0
 class HistoryItem(NamedTuple):
     txid: str
     tx_mined_status: TxMinedInfo
-    delta: int
+    delta: RavenValue
     fee: Optional[int]
-    balance: int
+    balance: RavenValue
 
 
 class TxWalletDelta(NamedTuple):
     is_relevant: bool  # "related to wallet?"
     is_any_input_ismine: bool
     is_all_input_ismine: bool
-    delta: int
+    delta: RavenValue
     fee: Optional[int]
 
 
@@ -498,7 +496,7 @@ class AddressSynchronizer(Logger):
         domain = set(domain)
         # 1. Get the history of each address in the domain, maintain the
         #    delta of a tx as the sum of its deltas on domain addresses
-        tx_deltas = defaultdict(int)  # type: Dict[str, int]
+        tx_deltas = defaultdict(RavenValue)  # type: Dict[str, RavenValue]
         for addr in domain:
             h = self.get_address_history(addr)
             for tx_hash, height in h:
@@ -524,7 +522,7 @@ class AddressSynchronizer(Logger):
             balance -= delta
         h2.reverse()
 
-        if balance != 0:
+        if balance != RavenValue():
             raise Exception("wallet.get_history() failed balance sanity-check")
 
         return h2
@@ -672,9 +670,9 @@ class AddressSynchronizer(Logger):
             return 0, 0
 
     @with_transaction_lock
-    def get_tx_delta(self, tx_hash: str, address: str) -> int:
+    def get_tx_delta(self, tx_hash: str, address: str) -> RavenValue:
         """effect of tx on address"""
-        delta = 0
+        delta = RavenValue()
         # subtract the value of coins sent from address
         d = self.db.get_txi_addr(tx_hash, address)
         for n, v in d:
@@ -689,7 +687,7 @@ class AddressSynchronizer(Logger):
         """effect of tx on wallet"""
         is_relevant = False  # "related to wallet?"
         num_input_ismine = 0
-        v_in = v_in_mine = v_out = v_out_mine = 0
+        v_in = v_in_mine = v_out = v_out_mine = RavenValue()
         with self.lock, self.transaction_lock:
             for txin in tx.inputs():
                 addr = self.get_txin_address(txin)
@@ -797,7 +795,7 @@ class AddressSynchronizer(Logger):
         return sum([v for height, v, is_cb in received.values()])
 
     @with_local_height_cached
-    def get_addr_balance(self, address, *, excluded_coins: Set[str] = None) -> Tuple[int, int, int]:
+    def get_addr_balance(self, address, *, excluded_coins: Set[str] = None) -> Tuple[RavenValue, RavenValue, RavenValue]:
         """Return the balance of a bitcoin address:
         confirmed and matured, unconfirmed, unmatured
         """
@@ -809,7 +807,7 @@ class AddressSynchronizer(Logger):
             excluded_coins = set()
         assert isinstance(excluded_coins, set), f"excluded_coins should be set, not {type(excluded_coins)}"
         received, sent = self.get_addr_io(address)
-        c = u = x = 0
+        c = u = x = RavenValue()
         mempool_height = self.get_local_height() + 1  # height of next block
         for txo, (tx_height, v, is_cb) in received.items():
             if txo in excluded_coins:
@@ -879,14 +877,14 @@ class AddressSynchronizer(Logger):
         return coins
 
     def get_balance(self, domain=None, *, excluded_addresses: Set[str] = None,
-                    excluded_coins: Set[str] = None) -> Tuple[int, int, int]:
+                    excluded_coins: Set[str] = None) -> Tuple[RavenValue, RavenValue, RavenValue]:
         if domain is None:
             domain = self.get_addresses()
         if excluded_addresses is None:
             excluded_addresses = set()
         assert isinstance(excluded_addresses, set), f"excluded_addresses should be set, not {type(excluded_addresses)}"
         domain = set(domain) - excluded_addresses
-        cc = uu = xx = 0
+        cc = uu = xx = RavenValue()
         for addr in domain:
             c, u, x = self.get_addr_balance(addr, excluded_coins=excluded_coins)
             cc += c

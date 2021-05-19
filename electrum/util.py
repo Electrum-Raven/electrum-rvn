@@ -184,13 +184,105 @@ class Satoshis(object):
         return format_satoshis(self.value)
 
     def __eq__(self, other):
-        return self.value == other.value
+        if isinstance(other, Satoshis):
+            return self.value == other.value
+        elif isinstance(other, int):
+            return self.value == other
+        else:
+            raise TypeError('Satoshis or int required')
 
     def __ne__(self, other):
         return not (self == other)
 
     def __add__(self, other):
-        return Satoshis(self.value + other.value)
+        if isinstance(other, Satoshis):
+            return Satoshis(self.value + other.value)
+        elif isinstance(other, int):
+            return Satoshis(self.value + other)
+        else:
+            raise TypeError('Satoshis or int required')
+
+    def __sub__(self, other):
+        if isinstance(other, Satoshis):
+            return Satoshis(self.value - other.value)
+        elif isinstance(other, int):
+            return Satoshis(self.value - other)
+        else:
+            raise TypeError('Satoshis or int required')
+
+    def __mul__(self, other):
+        if isinstance(other, Satoshis):
+            return Satoshis(self.value * other.value)
+        elif isinstance(other, int):
+            return Satoshis(self.value * other)
+        else:
+            raise TypeError('Satoshis or int required')
+
+    def __floordiv__(self, other):
+        if isinstance(other, Satoshis):
+            return Satoshis(self.value // other.value)
+        elif isinstance(other, int):
+            return Satoshis(self.value // other)
+        else:
+            raise TypeError('Satoshis or int required')
+
+    def __truediv__(self, other):
+        if isinstance(other, Satoshis):
+            return Satoshis(self.value / other.value)
+        elif isinstance(other, int):
+            return Satoshis(self.value / other)
+        else:
+            raise TypeError('Satoshis or int required')
+
+    def __neg__(self):
+        return Satoshis(- self.value)
+
+    def __lt__(self, other):
+        if isinstance(other, Satoshis):
+            return self.value < other.value
+        elif isinstance(other, int):
+            return self.value < other
+        else:
+            raise TypeError('Satoshis or int required')
+
+    def __le__(self, other):
+        if isinstance(other, Satoshis):
+            return self.value <= other.value
+        elif isinstance(other, int):
+            return self.value <= other
+        else:
+            raise TypeError('Satoshis or int required')
+
+    def __gt__(self, other):
+        if isinstance(other, Satoshis):
+            return self.value > other.value
+        elif isinstance(other, int):
+            return self.value > other
+        else:
+            raise TypeError('Satoshis or int required')
+
+    def __ge__(self, other):
+        if isinstance(other, Satoshis):
+            return self.value >= other.value
+        elif isinstance(other, int):
+            return self.value >= other
+        else:
+            raise TypeError('Satoshis or int required')
+
+    def __hash__(self):
+        return self.value
+
+    def __int__(self):
+        return self.value
+
+    def __index__(self):
+        return self.value
+
+    def __bool__(self):
+        return bool(self.value)
+
+    def to_bytes(self, length, byteorder, *, signed=False):
+        return self.value.to_bytes(length=length, byteorder=byteorder, signed=signed)
 
 
 # note: this is not a NamedTuple as then its json encoding cannot be customized
@@ -649,8 +741,9 @@ def format_satoshis(
 ) -> str:
     if x is None:
         return 'unknown'
-    if x == '!':
-        return 'max'
+    # Don't deal with '!' for now because of assets
+    # if x == '!':
+    #    return 'max'
     if precision is None:
         precision = decimal_point
     # format string
@@ -660,7 +753,7 @@ def format_satoshis(
     # initial result
     scale_factor = pow(10, decimal_point)
     if not isinstance(x, Decimal):
-        x = Decimal(x).quantize(Decimal('1E-8'))
+        x = Decimal(int(x)).quantize(Decimal('1E-8'))
     result = ("{:" + decimal_format + "f}").format(x / scale_factor)
     if "." not in result: result += "."
     result = result.rstrip('0')

@@ -28,7 +28,7 @@ import sys
 import time
 import datetime
 from datetime import date
-from typing import TYPE_CHECKING, Tuple, Dict
+from typing import TYPE_CHECKING, Tuple, Dict, NamedTuple, Optional
 import threading
 from enum import IntEnum
 from decimal import Decimal
@@ -52,6 +52,8 @@ from .custom_model import CustomNode, CustomModel
 from .util import (read_QIcon, MONOSPACE_FONT, Buttons, CancelButton, OkButton,
                    filename_field, MyTreeView, AcceptFileDragDrop, WindowModalDialog,
                    CloseButton, webopen, WWLabel)
+
+from electrum.transaction import RavenValue
 
 if TYPE_CHECKING:
     from electrum.wallet import Abstract_Wallet
@@ -88,12 +90,13 @@ ROLE_SORT_ORDER = Qt.UserRole + 1000
 class HistoryColumns(IntEnum):
     STATUS = 0
     DESCRIPTION = 1
-    AMOUNT = 2
-    BALANCE = 3
-    FIAT_VALUE = 4
-    FIAT_ACQ_PRICE = 5
-    FIAT_CAP_GAINS = 6
-    TXID = 7
+    ASSET = 2
+    AMOUNT = 3
+    BALANCE = 4
+    FIAT_VALUE = 5
+    FIAT_ACQ_PRICE = 6
+    FIAT_CAP_GAINS = 7
+    TXID = 8
 
 class HistorySortModel(QSortFilterProxyModel):
     def lessThan(self, source_left: QModelIndex, source_right: QModelIndex):
@@ -110,11 +113,33 @@ class HistorySortModel(QSortFilterProxyModel):
         except:
             return False
 
+
 def get_item_key(tx_item):
-    return tx_item.get('txid') or tx_item['payment_hash']
+    return tx_item.txid if tx_item.txid else tx_item.payment_hash
+
+
+class HistoryNodeData(NamedTuple):
+    lightning: bool
+    timestamp: Optional[int]
+    txid: Optional[str]
+    confirmations: int
+    label: Optional[str]
+    asset_name: Optional[str]
+    amount: Satoshis
+    balance: Satoshis
+    fiat_value: Optional[Fiat]
+    fiat_default: bool
+    acqu_price: Optional[Fiat]
+    fiat_gain: Optional[Fiat]
+    payment_hash: str
+    height: int
 
 
 class HistoryNode(CustomNode):
+
+    def __init__(self, model, data):
+        assert data is None or isinstance(data, HistoryNodeData)
+        super().__init__(model, data)
 
     def get_data_for_role(self, index: QModelIndex, role: Qt.ItemDataRole) -> QVariant:
         # note: this method is performance-critical.
@@ -122,9 +147,9 @@ class HistoryNode(CustomNode):
         assert index.isValid()
         col = index.column()
         window = self.model.parent
-        tx_item = self.get_data()
-        is_lightning = tx_item.get('lightning', False)
-        timestamp = tx_item['timestamp']
+        tx_item = self.get_data()  # type: HistoryNodeData
+        is_lightning = tx_item.lightning
+        timestamp = tx_item.timestamp
         if is_lightning:
             status = 0
             if timestamp is None:
@@ -132,8 +157,8 @@ class HistoryNode(CustomNode):
             else:
                 status_str = format_time(int(timestamp))
         else:
-            tx_hash = tx_item['txid']
-            conf = tx_item['confirmations']
+            tx_hash = tx_item.txid
+            conf = tx_item.confirmations
             try:
                 status, status_str = self.model.tx_status_cache[tx_hash]
             except KeyError:
@@ -146,18 +171,19 @@ class HistoryNode(CustomNode):
                     # respect sort order of self.transactions (wallet.get_full_history)
                     -index.row(),
                 HistoryColumns.DESCRIPTION:
-                    tx_item['label'] if 'label' in tx_item else None,
+                    tx_item.label,
+                HistoryColumns.ASSET:
+                    tx_item.asset_name,
                 HistoryColumns.AMOUNT:
-                    (tx_item['bc_value'].value if 'bc_value' in tx_item else 0)\
-                    + (tx_item['ln_value'].value if 'ln_value' in tx_item else 0),
+                    tx_item.amount,
                 HistoryColumns.BALANCE:
-                    (tx_item['balance'].value if 'balance' in tx_item else 0),
+                    tx_item.balance,
                 HistoryColumns.FIAT_VALUE:
-                    tx_item['fiat_value'].value if 'fiat_value' in tx_item else None,
+                    tx_item.fiat_value,
                 HistoryColumns.FIAT_ACQ_PRICE:
-                    tx_item['acquisition_price'].value if 'acquisition_price' in tx_item else None,
+                    tx_item.acqu_price,
                 HistoryColumns.FIAT_CAP_GAINS:
-                    tx_item['capital_gain'].value if 'capital_gain' in tx_item else None,
+                    tx_item.fiat_gain,
                 HistoryColumns.TXID: tx_hash if not is_lightning else None,
             }
             return QVariant(d[col])
@@ -171,7 +197,7 @@ class HistoryNode(CustomNode):
                 if is_lightning:
                     msg = 'lightning transaction'
                 else:  # on-chain
-                    if tx_item['height'] == TX_HEIGHT_LOCAL:
+                    if tx_item.height == TX_HEIGHT_LOCAL:
                         # note: should we also explain double-spends?
                         msg = _("This transaction is only available on your local machine.\n"
                                 "The currently connected server does not know about it.\n"
@@ -188,38 +214,36 @@ class HistoryNode(CustomNode):
             #        and self.parent.wallet.invoices.paid.get(tx_hash):
             #    return QVariant(read_QIcon("seal"))
             elif col in (HistoryColumns.DESCRIPTION, HistoryColumns.AMOUNT) \
-                    and role == Qt.ForegroundRole and tx_item['value'].value < 0:
+                    and role == Qt.ForegroundRole and tx_item.amount < 0:
                 red_brush = QBrush(QColor("#BC1E1E"))
                 return QVariant(red_brush)
             elif col == HistoryColumns.FIAT_VALUE and role == Qt.ForegroundRole \
-                    and not tx_item.get('fiat_default') and tx_item.get('fiat_value') is not None:
+                    and not tx_item.fiat_default and tx_item.fiat_value is not None:
                 blue_brush = QBrush(QColor("#1E1EFF"))
                 return QVariant(blue_brush)
             return QVariant()
         if col == HistoryColumns.STATUS:
             return QVariant(status_str)
-        elif col == HistoryColumns.DESCRIPTION and 'label' in tx_item:
-            return QVariant(tx_item['label'])
+        elif col == HistoryColumns.DESCRIPTION and tx_item.label:
+            return QVariant(tx_item.label)
+        elif col == HistoryColumns.ASSET and tx_item.asset_name:
+            return QVariant(tx_item.asset_name)
         elif col == HistoryColumns.AMOUNT:
-            bc_value = tx_item['bc_value'].value if 'bc_value' in tx_item else 0
-            ln_value = tx_item['ln_value'].value if 'ln_value' in tx_item else 0
-            value = bc_value + ln_value
-            v_str = window.format_amount(value, is_diff=True, whitespaces=True)
+            v_str = window.format_amount(tx_item.amount, is_diff=True, whitespaces=True)
             return QVariant(v_str)
         elif col == HistoryColumns.BALANCE:
-            balance = tx_item['balance'].value
-            balance_str = window.format_amount(balance, whitespaces=True)
+            balance_str = window.format_amount(tx_item.balance, whitespaces=True)
             return QVariant(balance_str)
-        elif col == HistoryColumns.FIAT_VALUE and 'fiat_value' in tx_item:
-            value_str = window.fx.format_fiat(tx_item['fiat_value'].value)
+        elif col == HistoryColumns.FIAT_VALUE and tx_item.fiat_value:
+            value_str = window.fx.format_fiat(tx_item.fiat_value.value)
             return QVariant(value_str)
         elif col == HistoryColumns.FIAT_ACQ_PRICE and \
-                tx_item['value'].value < 0 and 'acquisition_price' in tx_item:
+                tx_item.amount < 0 and tx_item.acqu_price:
             # fixme: should use is_mine
-            acq = tx_item['acquisition_price'].value
+            acq = tx_item.acqu_price.value
             return QVariant(window.fx.format_fiat(acq))
-        elif col == HistoryColumns.FIAT_CAP_GAINS and 'capital_gain' in tx_item:
-            cg = tx_item['capital_gain'].value
+        elif col == HistoryColumns.FIAT_CAP_GAINS and tx_item.fiat_gain:
+            cg = tx_item.fiat_gain.value
             return QVariant(window.fx.format_fiat(cg))
         elif col == HistoryColumns.TXID:
             return QVariant(tx_hash) if not is_lightning else QVariant('')
@@ -257,6 +281,46 @@ class HistoryModel(CustomModel, Logger):
         """Overridden in address_dialog.py"""
         return True
 
+    def add_history_node(self, node_data: HistoryNodeData, parents, tx_item):
+        node = HistoryNode(self, node_data)
+        group_id = tx_item.get('group_id')
+        if group_id is None:
+            self._root.addChild(node)
+        else:
+            parent = parents.get(group_id)
+            if parent is None:
+                # create parent if it does not exist
+                self._root.addChild(node)
+                parents[group_id] = node
+            else:
+                # if parent has no children, create two children
+                if parent.childCount() == 0:
+                    child_data = dict(parent.get_data())
+                    node1 = HistoryNode(self, child_data)
+                    parent.addChild(node1)
+                    parent._data['label'] = child_data.get('group_label')
+                    parent._data['bc_value'] = child_data.get('bc_value', RavenValue())
+                    parent._data['ln_value'] = child_data.get('ln_value', RavenValue())
+                # add child to parent
+                parent.addChild(node)
+                # update parent data
+                parent._data['balance'] = tx_item['balance']
+                parent._data['value'] += tx_item['value']
+                if 'group_label' in tx_item:
+                    parent._data['label'] = tx_item['group_label']
+                if 'bc_value' in tx_item:
+                    parent._data['bc_value'] += tx_item['bc_value']
+                if 'ln_value' in tx_item:
+                    parent._data['ln_value'] += tx_item['ln_value']
+                if 'fiat_value' in tx_item:
+                    parent._data['fiat_value'] += tx_item['fiat_value']
+                if tx_item.get('txid') == group_id:
+                    parent._data['lightning'] = False
+                    parent._data['txid'] = tx_item['txid']
+                    parent._data['timestamp'] = tx_item['timestamp']
+                    parent._data['height'] = tx_item['height']
+                    parent._data['confirmations'] = tx_item['confirmations']
+
     @profiler
     def refresh(self, reason: str):
         self.logger.info(f"refreshing... reason: {reason}")
@@ -286,44 +350,67 @@ class HistoryModel(CustomModel, Logger):
             self.endRemoveRows()
         parents = {}
         for tx_item in transactions.values():
-            node = HistoryNode(self, tx_item)
-            group_id = tx_item.get('group_id')
-            if group_id is None:
-                self._root.addChild(node)
-            else:
-                parent = parents.get(group_id)
-                if parent is None:
-                    # create parent if it does not exist
-                    self._root.addChild(node)
-                    parents[group_id] = node
-                else:
-                    # if parent has no children, create two children
-                    if parent.childCount() == 0:
-                        child_data = dict(parent.get_data())
-                        node1 = HistoryNode(self, child_data)
-                        parent.addChild(node1)
-                        parent._data['label'] = child_data.get('group_label')
-                        parent._data['bc_value'] = child_data.get('bc_value', Satoshis(0))
-                        parent._data['ln_value'] = child_data.get('ln_value', Satoshis(0))
-                    # add child to parent
-                    parent.addChild(node)
-                    # update parent data
-                    parent._data['balance'] = tx_item['balance']
-                    parent._data['value'] += tx_item['value']
-                    if 'group_label' in tx_item:
-                        parent._data['label'] = tx_item['group_label']
-                    if 'bc_value' in tx_item:
-                        parent._data['bc_value'] += tx_item['bc_value']
-                    if 'ln_value' in tx_item:
-                        parent._data['ln_value'] += tx_item['ln_value']
-                    if 'fiat_value' in tx_item:
-                        parent._data['fiat_value'] += tx_item['fiat_value']
-                    if tx_item.get('txid') == group_id:
-                        parent._data['lightning'] = False
-                        parent._data['txid'] = tx_item['txid']
-                        parent._data['timestamp'] = tx_item['timestamp']
-                        parent._data['height'] = tx_item['height']
-                        parent._data['confirmations'] = tx_item['confirmations']
+
+            # Create separate rows for assets
+
+            value = tx_item['value']  # type: RavenValue
+            lightning = tx_item.get('lightning', False)
+            timestamp = tx_item.get('timestamp')
+            txid = tx_item.get('txid')
+            confirmations = tx_item.get('confirmations', 0)
+            label = tx_item.get('label')
+            fiat_value = tx_item.get('fiat_value')
+            fiat_default = tx_item.get('fiat_default', False)
+            acqu_price = tx_item.get('acquisition_price')
+            fiat_gain = tx_item.get('capital_gain')
+            payment_hash = tx_item.get('payment_hash')
+            height = tx_item.get('height')
+
+            if value.rvn_value != 0:
+                asset_name = None
+                amount = value.rvn_value
+                balance = tx_item['balance'].rvn_value
+
+                node_data = HistoryNodeData(
+                    lightning=lightning,
+                    timestamp=timestamp,
+                    txid=txid,
+                    confirmations=confirmations,
+                    label=label,
+                    asset_name=asset_name,
+                    amount=amount,
+                    balance=balance,
+                    fiat_value=fiat_value,
+                    fiat_default=fiat_default,
+                    acqu_price=acqu_price,
+                    fiat_gain=fiat_gain,
+                    payment_hash=payment_hash,
+                    height=height
+                )
+                self.add_history_node(node_data, parents, tx_item)
+
+            for asset in value.assets:
+                asset_name = asset
+                amount = value.assets[asset]
+                balance = tx_item['balance'].assets[asset]
+
+                node_data = HistoryNodeData(
+                    lightning=lightning,
+                    timestamp=timestamp,
+                    txid=txid,
+                    confirmations=confirmations,
+                    label=label,
+                    asset_name=asset_name,
+                    amount=amount,
+                    balance=balance,
+                    fiat_value=fiat_value,
+                    fiat_default=fiat_default,
+                    acqu_price=acqu_price,
+                    fiat_gain=fiat_gain,
+                    payment_hash=payment_hash,
+                    height=height
+                )
+                self.add_history_node(node_data, parents, tx_item)
 
         new_length = self._root.childCount()
         self.beginInsertRows(QModelIndex(), 0, new_length-1)
@@ -413,6 +500,7 @@ class HistoryModel(CustomModel, Logger):
         return {
             HistoryColumns.STATUS: _('Date'),
             HistoryColumns.DESCRIPTION: _('Description'),
+            HistoryColumns.ASSET: _('Asset'),
             HistoryColumns.AMOUNT: _('Amount'),
             HistoryColumns.BALANCE: _('Balance'),
             HistoryColumns.FIAT_VALUE: fiat_title,
@@ -422,16 +510,25 @@ class HistoryModel(CustomModel, Logger):
         }[section]
 
     def flags(self, idx):
-        extra_flags = Qt.NoItemFlags # type: Qt.ItemFlag
+        extra_flags = Qt.NoItemFlags  # type: Qt.ItemFlag
         if idx.column() in self.view.editable_columns:
             extra_flags |= Qt.ItemIsEditable
         return super().flags(idx) | int(extra_flags)
 
     @staticmethod
     def tx_mined_info_from_tx_item(tx_item):
-        tx_mined_info = TxMinedInfo(height=tx_item['height'],
-                                    conf=tx_item['confirmations'],
-                                    timestamp=tx_item['timestamp'])
+        if isinstance(tx_item, HistoryNodeData):
+            height = tx_item.height
+            confirmations = tx_item.confirmations
+            timestamp = tx_item.timestamp
+        else:
+            height = tx_item['height']
+            confirmations = tx_item['confirmations']
+            timestamp = tx_item['timestamp']
+
+        tx_mined_info = TxMinedInfo(height=height,
+                                    conf=confirmations,
+                                    timestamp=timestamp)
         return tx_mined_info
 
 class HistoryList(MyTreeView, AcceptFileDragDrop):

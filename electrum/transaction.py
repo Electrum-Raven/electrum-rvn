@@ -34,7 +34,7 @@ import io
 import base64
 from typing import (Sequence, Union, NamedTuple, Tuple, Optional, Iterable,
                     Callable, List, Dict, Set, TYPE_CHECKING)
-from collections import defaultdict
+from collections import defaultdict, Counter
 from enum import IntEnum
 import itertools
 import binascii
@@ -42,7 +42,7 @@ import copy
 
 from . import ecc, ravencoin, constants, segwit_addr, bip32
 from .bip32 import BIP32Node
-from .util import profiler, to_bytes, bh2u, bfh, chunks, is_hex_str
+from .util import profiler, to_bytes, bh2u, bfh, chunks, is_hex_str, Satoshis
 from .ravencoin import (TYPE_ADDRESS, TYPE_SCRIPT, hash_160,
                         hash160_to_p2sh, hash160_to_p2pkh, hash_to_segwit_addr,
                         var_int, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC, COIN,
@@ -91,21 +91,96 @@ class MissingTxInputAmount(Exception):
 SIGHASH_ALL = 1
 
 
+class RavenValue:  # The raw RVN value as well as asset values of a transaction
+    @staticmethod
+    def from_json(d: Dict):
+        assert 'RVN' in d and 'ASSETS' in d
+        return RavenValue(d['RVN'], d['ASSETS'])
+
+    def __init__(self, rvn=0, assets=None):
+        if assets is None:
+            assets = {}
+        assert isinstance(rvn, int) or isinstance(rvn, Satoshis)
+        assert isinstance(assets, Dict)
+        if isinstance(rvn, int):
+            self.__rvn_value = Satoshis(rvn)
+        else:
+            self.__rvn_value = rvn
+        self.__asset_value = {k: Satoshis(v) for k, v in assets.items()}
+
+    @property
+    def rvn_value(self) -> Satoshis:
+        return self.__rvn_value
+
+    @property
+    def assets(self) -> Dict[str, Satoshis]:
+        return copy.copy(self.__asset_value)
+
+    def __repr__(self):
+        return 'RavenValue(RVN: {}, ASSETS: {})'.format(self.__rvn_value, self.__asset_value)
+
+    def __add__(self, other):
+        if isinstance(other, RavenValue):
+            v_r = self.rvn_value + other.rvn_value
+            v_a = Counter(self.assets) + Counter(other.assets)
+            return RavenValue(v_r, dict(v_a))
+        else:
+            raise ValueError('RavenValue required')
+
+    def __sub__(self, other):
+        if isinstance(other, RavenValue):
+            v_r = self.rvn_value - other.rvn_value
+            v_a = Counter(self.assets) - Counter(other.assets)
+            return RavenValue(v_r, dict(v_a))
+        else:
+            raise ValueError('RavenValue required')
+
+    def __eq__(self, other):
+        if not isinstance(other, RavenValue):
+            return False
+        return self.__rvn_value == other.__rvn_value and self.__asset_value == other.__asset_value
+
+    def __hash__(self):
+        k1 = hash(self.__rvn_value)
+        k2 = hash(frozenset(self.__asset_value.items()))
+        return int((k1 + k2) * (k1 + k2 + 1) / 2 + k2)
+
+    def to_json(self):
+        d = {
+            'RVN': self.rvn_value,
+            'ASSETS': self.assets,
+        }
+        return d
+
+    def is_incoming(self):
+        return self.rvn_value > 0 or (len(self.__asset_value) > 0 and list(self.__asset_value.values())[0] > 0)
+
+
+class AssetMeta(NamedTuple):
+    name: str
+    is_owner: bool
+    is_reissuable: bool
+    has_ipfs: bool
+    ipfs_str: str
+
+
 class TxOutput:
     scriptpubkey: bytes
-    value: Union[int, str]
+    value: RavenValue
 
-    def __init__(self, *, scriptpubkey: bytes, value: Union[int, str]):
+    def __init__(self, *, scriptpubkey: bytes, value: RavenValue):
+        assert isinstance(scriptpubkey, bytes)
+        assert isinstance(value, RavenValue)
         self.scriptpubkey = scriptpubkey
-        self.value = value  # str when the output is set to max: '!'  # in satoshis
+        self.value = value  # deprecated: str when the output is set to max: '!'  # in satoshis
 
     @classmethod
-    def from_address_and_value(cls, address: str, value: Union[int, str]) -> Union['TxOutput', 'PartialTxOutput']:
+    def from_address_and_value(cls, address: str, value: RavenValue) -> Union['TxOutput', 'PartialTxOutput']:
         return cls(scriptpubkey=bfh(ravencoin.address_to_script(address)),
                    value=value)
 
     def serialize_to_network(self) -> bytes:
-        buf = int.to_bytes(self.value, 8, byteorder="little", signed=False)
+        buf = self.value.rvn_value.to_bytes(8, byteorder="little", signed=False)
         script = self.scriptpubkey
         buf += bfh(var_int(len(script.hex()) // 2))
         buf += script
@@ -120,13 +195,13 @@ class TxOutput:
             raise SerializationError('extra junk at the end of TxOutput bytes')
         return txout
 
-    def to_legacy_tuple(self) -> Tuple[int, str, Union[int, str]]:
+    def to_legacy_tuple(self) -> Tuple[int, str, RavenValue]:
         if self.address:
             return TYPE_ADDRESS, self.address, self.value
         return TYPE_SCRIPT, self.scriptpubkey.hex(), self.value
 
     @classmethod
-    def from_legacy_tuple(cls, _type: int, addr: str, val: Union[int, str]) -> Union['TxOutput', 'PartialTxOutput']:
+    def from_legacy_tuple(cls, _type: int, addr: str, val: RavenValue) -> Union['TxOutput', 'PartialTxOutput']:
         if _type == TYPE_ADDRESS:
             return cls.from_address_and_value(addr, val)
         if _type == TYPE_SCRIPT:
@@ -509,14 +584,50 @@ def parse_witness(vds: BCDataStream, txin: TxInput) -> None:
     txin.witness = bfh(construct_witness(witness_elements))
 
 
+def get_assets_from_script(script: bytes) -> Dict[str, int]:
+
+    if len(script) <= 31:
+        return {}
+
+    def search_for_rvn(b: bytes, start: int) -> int:
+        index = -1
+        if b[start:start+3] == 'rvn':
+            index = start+3
+        elif b[start+1:start+4] == 'rvn':
+            index = start+4
+        return index
+
+    if script[0] == 0xA9 and script[1] == 0x14 and script[22] == 0x87:  # Script hash
+        index = search_for_rvn(script, 25)
+    else:  # Assumed Pubkey hash
+        index = search_for_rvn(script, 27)
+
+    if index > 0:
+        type = script[index]
+        asset_name_len = script[index+1]
+        asset_name = script[index+2:index+2+asset_name_len]
+        if type != 'o':
+            sat_amt = int.from_bytes(script[index+2+asset_name_len:index+10+asset_name_len], byteorder='little')
+        else:  # Give a value of '1' to ownership tokens
+            sat_amt = 100_000_000
+        name = asset_name.decode('ascii')
+        return {name: sat_amt}
+    else:
+        return {}
+
+
 def parse_output(vds: BCDataStream) -> TxOutput:
     value = vds.read_int64()
     if value > TOTAL_COIN_SUPPLY_LIMIT_IN_BTC * COIN:
         raise SerializationError('invalid output amount (too large)')
     if value < 0:
         raise SerializationError('invalid output amount (negative)')
+
     scriptpubkey = vds.read_bytes(vds.read_compact_size())
-    return TxOutput(value=value, scriptpubkey=scriptpubkey)
+    assets = get_assets_from_script(scriptpubkey)
+    ravencoin_value = RavenValue(value, assets)
+
+    return TxOutput(value=ravencoin_value, scriptpubkey=scriptpubkey)
 
 
 # pay & redeem scripts
@@ -1156,7 +1267,7 @@ class PartialTxInput(TxInput, PSBTSection):
         self.script_type = 'unknown'
         self.num_sig = 0  # type: int  # num req sigs for multisig
         self.pubkeys = []  # type: List[bytes]  # note: order matters
-        self._trusted_value_sats = None  # type: Optional[int]
+        self._trusted_value_sats = None  # type: Optional[RavenValue]
         self._trusted_address = None  # type: Optional[str]
         self.block_height = None  # type: Optional[int]  # height at which the TXO is mined; None means unknown
         self.spent_height = None  # type: Optional[int]  # height at which the TXO got spent
@@ -1340,7 +1451,7 @@ class PartialTxInput(TxInput, PSBTSection):
             key_type, key = self.get_keytype_and_key_from_fullkey(full_key)
             wr(key_type, val, key=key)
 
-    def value_sats(self) -> Optional[int]:
+    def value_sats(self) -> Optional[RavenValue]:
         if self._trusted_value_sats is not None:
             return self._trusted_value_sats
         if self.utxo:

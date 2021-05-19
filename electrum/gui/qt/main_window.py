@@ -68,7 +68,7 @@ from electrum.util import (format_time,
 from electrum.invoices import PR_TYPE_ONCHAIN, PR_TYPE_LN, PR_DEFAULT_EXPIRATION_WHEN_CREATING, Invoice
 from electrum.invoices import PR_PAID, PR_FAILED, pr_expiration_values, LNInvoice, OnchainInvoice
 from electrum.transaction import (Transaction, PartialTxInput,
-                                  PartialTransaction, PartialTxOutput)
+                                  PartialTransaction, PartialTxOutput, RavenValue)
 from electrum.wallet import (Multisig_Wallet, CannotBumpFee, Abstract_Wallet,
                              sweep_preparations, InternalAddressCorruption,
                              CannotDoubleSpendTx, CannotCPFP)
@@ -840,20 +840,36 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                 break
         # Combine the transactions if there are at least three
         if len(txns) >= 3:
-            total_amount = 0
+            total_amount = RavenValue()
             for tx in txns:
                 tx_wallet_delta = self.wallet.get_wallet_delta(tx)
                 if not tx_wallet_delta.is_relevant:
                     continue
                 total_amount += tx_wallet_delta.delta
+            recv = ''
+            rvn = total_amount.rvn_value
+            assets = total_amount.assets
+            recv += self.format_amount_and_units(rvn)
+            if assets:
+                recv += ', '
+                assets = ['{}: {}'.format(asset, self.config.format_amount(val)) for asset, val in assets.items()]
+                recv += ', '.join(assets)
             self.notify(_("{} new transactions: Total amount received in the new transactions {}")
-                        .format(len(txns), self.format_amount_and_units(total_amount)))
+                        .format(len(txns), recv))
         else:
             for tx in txns:
                 tx_wallet_delta = self.wallet.get_wallet_delta(tx)
                 if not tx_wallet_delta.is_relevant:
                     continue
-                self.notify(_("New transaction: {}").format(self.format_amount_and_units(tx_wallet_delta.delta)))
+                recv = ''
+                rvn = tx_wallet_delta.delta.rvn_value
+                assets = tx_wallet_delta.delta.assets
+                recv += self.format_amount_and_units(rvn)
+                if assets:
+                    recv += ', '
+                    assets = ['{}: {}'.format(asset, self.config.format_amount(val)) for asset, val in assets.items()]
+                    recv += ', '.join(assets)
+                self.notify(_("New transaction: {}").format(recv))
 
     def notify(self, message):
         if self.tray:
@@ -970,6 +986,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                 icon = read_QIcon("status_lagging%s.png"%fork_str)
             else:
                 c, u, x = self.wallet.get_balance()
+                c, u, x = c.rvn_value, u.rvn_value, x.rvn_value
                 text =  _("Balance") + ": %s "%(self.format_amount_and_units(c))
                 if u:
                     text +=  " [%s unconfirmed]"%(self.format_amount(u, is_diff=True).strip())

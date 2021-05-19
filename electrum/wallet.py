@@ -69,7 +69,7 @@ from .storage import StorageEncryptionVersion, WalletStorage
 from .wallet_db import WalletDB
 from . import transaction, ravencoin, coinchooser, paymentrequest, ecc, bip32
 from .transaction import (Transaction, TxInput, UnknownTxinType, TxOutput,
-                          PartialTransaction, PartialTxInput, PartialTxOutput, TxOutpoint)
+                          PartialTransaction, PartialTxInput, PartialTxOutput, TxOutpoint, RavenValue)
 from .plugin import run_hook
 from .address_synchronizer import (AddressSynchronizer, TX_HEIGHT_LOCAL,
                                    TX_HEIGHT_UNCONF_PARENT, TX_HEIGHT_UNCONFIRMED, TX_HEIGHT_FUTURE)
@@ -739,9 +739,9 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 'confirmations': hist_item.tx_mined_status.conf,
                 'timestamp': hist_item.tx_mined_status.timestamp,
                 'monotonic_timestamp': monotonic_timestamp,
-                'incoming': True if hist_item.delta>0 else False,
-                'bc_value': Satoshis(hist_item.delta),
-                'bc_balance': Satoshis(hist_item.balance),
+                'incoming': hist_item.delta.is_incoming(),
+                'bc_value': hist_item.delta,
+                'bc_balance': hist_item.balance,
                 'date': timestamp_to_datetime(hist_item.tx_mined_status.timestamp),
                 'label': self.get_label_for_txid(hist_item.txid),
                 'txpos_in_block': hist_item.tx_mined_status.txpos,
@@ -923,7 +923,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 tx_item['label'] = item['label']
                 tx_item['type'] = item['type']
                 ln_value = Decimal(item['amount_msat']) / 1000   # for channel open/close tx
-                tx_item['ln_value'] = Satoshis(ln_value)
+                tx_item['ln_value'] = RavenValue(ln_value)
             else:
                 if item['type'] == 'swap':
                     # swap items do not have all the fields. We can skip skip them
@@ -932,14 +932,14 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                     continue
                 transactions_tmp[txid] = item
                 ln_value = Decimal(item['amount_msat']) / 1000   # for channel open/close tx
-                item['ln_value'] = Satoshis(ln_value)
+                item['ln_value'] = RavenValue(ln_value)
         # add lightning_transactions
         lightning_history = self.lnworker.get_lightning_history() if self.lnworker and include_lightning else {}
         for tx_item in lightning_history.values():
             txid = tx_item.get('txid')
             ln_value = Decimal(tx_item['amount_msat']) / 1000
             tx_item['lightning'] = True
-            tx_item['ln_value'] = Satoshis(ln_value)
+            tx_item['ln_value'] = RavenValue(ln_value)
             key = tx_item.get('txid') or tx_item['payment_hash']
             transactions_tmp[key] = tx_item
         # sort on-chain and LN stuff into new dict, by timestamp
@@ -949,26 +949,27 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                            key=lambda x: x[1].get('monotonic_timestamp') or x[1].get('timestamp') or float('inf')):
             transactions[k] = v
         now = time.time()
-        balance = 0
+        balance = RavenValue()
         for item in transactions.values():
             # add on-chain and lightning values
-            value = Decimal(0)
+            value = RavenValue()
             if item.get('bc_value'):
-                value += item['bc_value'].value
+                value += item['bc_value']
             if item.get('ln_value'):
-                value += item.get('ln_value').value
+                value += item.get('ln_value')
             # note: 'value' and 'balance' has msat precision (as LN has msat precision)
-            item['value'] = Satoshis(value)
+            # This is no longer true as 'RavenValue' converts fields into Satoshis
+            item['value'] = value
             balance += value
-            item['balance'] = Satoshis(balance)
+            item['balance'] = balance
             if fx and fx.is_enabled() and fx.get_history_config():
                 txid = item.get('txid')
                 if not item.get('lightning') and txid:
-                    fiat_fields = self.get_tx_item_fiat(tx_hash=txid, amount_sat=value, fx=fx, tx_fee=item['fee_sat'])
+                    fiat_fields = self.get_tx_item_fiat(tx_hash=txid, amount_sat=value.rvn_value, fx=fx, tx_fee=item['fee_sat'])
                     item.update(fiat_fields)
                 else:
                     timestamp = item['timestamp'] or now
-                    fiat_value = value / Decimal(ravencoin.COIN) * fx.timestamp_rate(timestamp)
+                    fiat_value = value.rvn_value / Decimal(ravencoin.COIN) * fx.timestamp_rate(timestamp)
                     item['fiat_value'] = Fiat(fiat_value, fx.ccy)
                     item['fiat_default'] = True
         return transactions
@@ -1013,7 +1014,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
             item['fee'] = Satoshis(tx_fee) if tx_fee is not None else None
             if show_addresses:
                 item['inputs'] = list(map(lambda x: x.to_json(), tx.inputs()))
-                item['outputs'] = list(map(lambda x: {'address': x.get_ui_address_str(), 'value': Satoshis(x.value)},
+                item['outputs'] = list(map(lambda x: {'address': x.get_ui_address_str(), 'value': x.value},
                                            tx.outputs()))
             # fixme: use in and out values
             value = item['bc_value'].value
@@ -1043,10 +1044,10 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 start_height = first_item['height'] - 1
                 end_height = last_item['height']
 
-            b = first_item['bc_balance'].value
-            v = first_item['bc_value'].value
+            b = first_item['bc_balance']
+            v = first_item['bc_value']
             start_balance = None if b is None or v is None else b - v
-            end_balance = last_item['bc_balance'].value
+            end_balance = last_item['bc_balance']
 
             if from_timestamp is not None and to_timestamp is not None:
                 start_timestamp = from_timestamp
@@ -1123,7 +1124,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
             self,
             *,
             tx_hash: str,
-            amount_sat: int,
+            amount_sat: Satoshis,
             fx: 'FxThread',
             tx_fee: Optional[int],
     ) -> Dict[str, Any]:
