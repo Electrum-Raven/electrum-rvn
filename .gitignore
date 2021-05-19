@@ -5,7 +5,7 @@ build/
 dist/
 tmp/
 *.egg/
-Electrum-RVN.egg-info/
+Electrum_Ravencoin.egg-info/
 electrum/locale/*
 !electrum/locale/messages.pot
 .devlocaltmp/
