@@ -1210,6 +1210,38 @@ class Commands:
             'onchain_amount': format_satoshis(onchain_amount_sat),
         }
 
+    @command('n')
+    def getaddressassets(self, address):
+        """Returns the Asset list of any address. Note: This
+        is a walletless server query, results are not checked by SPV.
+        """
+        sh = ravencoin.address_to_scripthash(address)
+        return self.network.run_from_another_thread(self.network.listasset_for_scripthash(sh))
+
+    @command('n')
+    def getassetaddressbalance(self, address):
+        """Return the asset balance of any address. Note: This is a walletless
+        server query, results are not checked by SPV.
+        """
+        sh = ravencoin.address_to_scripthash(address)
+        out = self.network.run_from_another_thread(self.network.get_asset_balance_for_scripthash(sh))
+        for key, value in out["confirmed"].items():
+            val = str(Decimal(value) / COIN)
+            out["confirmed"][key] = val
+        for key, value in out["unconfirmed"].items():
+            val = str(Decimal(value) / COIN)
+            out["unconfirmed"][key] = val
+        return out
+
+    @command('n')
+    def getassetdata(self, name):
+        return self.network.run_from_another_thread(self.network.getmeta_for_asset(name))
+
+    @command('n')
+    def getserverpeers(self):
+        return self.network.run_from_another_thread(
+            self.network.interface.session.send_request('server.peers.subscribe'))
+
 
 def eval_bool(x: str) -> bool:
     if x == 'false': return False

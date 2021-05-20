@@ -161,11 +161,12 @@ class AddressList(MyTreeView):
         fx = self.parent.fx
         set_address = None
         addresses_beyond_gap_limit = self.wallet.get_all_known_addresses_beyond_gap_limit()
+        # We only care about ravencoin for addresses for now
         for address in addr_list:
             num = self.wallet.get_address_history_len(address)
             label = self.wallet.get_label(address)
             c, u, x = self.wallet.get_addr_balance(address)
-            balance = c + u + x
+            balance = c.rvn_value.value + u.rvn_value.value + x.rvn_value.value
             is_used_and_empty = self.wallet.is_used(address) and balance == 0
             if self.show_used == AddressUsageStateFilter.UNUSED and (balance or is_used_and_empty):
                 continue

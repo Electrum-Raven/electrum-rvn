@@ -45,7 +45,7 @@ from electrum.ravencoin import base_encode, NLOCKTIME_BLOCKHEIGHT_MAX
 from electrum.i18n import _
 from electrum.plugin import run_hook
 from electrum import simple_config
-from electrum.transaction import SerializationError, Transaction, PartialTransaction, PartialTxInput
+from electrum.transaction import SerializationError, Transaction, PartialTransaction, PartialTxInput, RavenValue
 from electrum.logging import get_logger
 
 from .util import (MessageBoxMixin, read_QIcon, Buttons, icon_path,
@@ -436,15 +436,16 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         tx_details = self.wallet.get_tx_info(self.tx)
         tx_mined_status = tx_details.tx_mined_status
         exp_n = tx_details.mempool_depth_bytes
-        amount, fee = tx_details.amount.rvn_value, tx_details.fee
+        amount, fee = tx_details.amount, tx_details.fee
         size = self.tx.estimated_size()
         txid = self.tx.txid()
         fx = self.main_window.fx
         tx_item_fiat = None
         if (self.finalized  # ensures we don't use historical rates for tx being constructed *now*
                 and txid is not None and fx.is_enabled() and amount is not None):
+            # Only normal RVN has an assignable value
             tx_item_fiat = self.wallet.get_tx_item_fiat(
-                tx_hash=txid, amount_sat=abs(amount), fx=fx, tx_fee=fee)
+                tx_hash=txid, amount_sat=abs(amount.rvn_value.value), fx=fx, tx_fee=fee)
         lnworker_history = self.wallet.lnworker.get_onchain_history() if self.wallet.lnworker else {}
         if txid in lnworker_history:
             item = lnworker_history[txid]
@@ -502,15 +503,21 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         elif amount is None:
             amount_str = ''
         else:
-            if amount > 0:
-                amount_str = _("Amount received:") + ' %s'% format_amount(amount) + ' ' + base_unit
-            else:
-                amount_str = _("Amount sent:") + ' %s' % format_amount(-amount) + ' ' + base_unit
+            rvn = amount.rvn_value.value
+            assets = amount.assets
+            amounts = []
+            if rvn != 0:
+                amounts.append('{} {}'.format(format_amount(rvn), base_unit))
+            for asset, v in assets.items():
+                amounts.append('{} {}'.format(format_amount(v.value), asset))
+            amount_str = _("My amount") + ('s: ' if len(amounts) > 1 else ': ') + ', '.join(amounts)
+
             if fx.is_enabled():
                 if tx_item_fiat:
                     amount_str += ' (%s)' % tx_item_fiat['fiat_value'].to_ui_string()
                 else:
-                    amount_str += ' (%s)' % format_fiat_and_units(abs(amount))
+                    # Fiat value only for normal RVN
+                    amount_str += ' (%s)' % format_fiat_and_units(abs(amount.rvn_value.value))
         if amount_str:
             self.amount_label.setText(amount_str)
         else:
@@ -602,8 +609,15 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
                 return self.txo_color_2fa.text_char_format
             return ext
 
-        def format_amount(amt):
-            return self.main_window.format_amount(amt, whitespaces=True)
+        def format_amount(amt: RavenValue):
+            rvn = amt.rvn_value.value
+            assets = amt.assets
+            amounts = []
+            if rvn != 0:
+                amounts.append(self.main_window.format_amount(rvn, whitespaces=True) + ' RVN')
+            for asset, sats in assets.items():
+                amounts.append('{} {}'.format(self.main_window.format_amount(sats.value, whitespaces=True), asset))
+            return ', '.join(amounts)
 
         i_text = self.inputs_textedit
         i_text.clear()

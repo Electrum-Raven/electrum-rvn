@@ -908,26 +908,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.payto_e.resolve()
         self.notify_transactions()
 
-    def format_amount(self, amount_sat: Union[int, RavenValue], is_diff=False, whitespaces=False) -> str:
+    def format_amount(self, amount_sat: int, is_diff=False, whitespaces=False) -> str:
         """Formats amount as string, converting to desired unit.
         E.g. 500_000 -> '0.005'
         """
-        if isinstance(amount_sat, RavenValue):
-            repr = ''
-            rvn = amount_sat.rvn_value
-            assets = amount_sat.assets
-            if rvn != 0:
-                repr += self.config.format_amount(rvn, is_diff=is_diff, whitespaces=whitespaces)
-            if assets:
-                repr += ', '
-                repr += ', '.join([
-                    '{} {}'.format(asset, self.config.format_amount(v.value,
-                                                                    is_diff=is_diff,
-                                                                    whitespaces=whitespaces))
-                    for asset, v in assets.items()])
-            return repr
-        else:
-            return self.config.format_amount(amount_sat, is_diff=is_diff, whitespaces=whitespaces)
+        return self.config.format_amount(amount_sat, is_diff=is_diff, whitespaces=whitespaces)
 
     def format_amount_and_units(self, amount_sat, *, timestamp: int = None) -> str:
         """Returns string with both bitcoin and fiat amounts, in desired units.

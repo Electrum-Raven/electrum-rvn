@@ -650,7 +650,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         if is_relevant:
             if tx_wallet_delta.is_all_input_ismine:
                 assert fee is not None
-                amount = tx_wallet_delta.delta + fee
+                amount = tx_wallet_delta.delta + RavenValue(fee)
             else:
                 amount = tx_wallet_delta.delta
         else:
@@ -1118,7 +1118,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         return sum([coin.value_sats() for coin in coins]) * p / Decimal(COIN)
 
     def default_fiat_value(self, tx_hash, fx, value_sat):
-        return value_sat / Decimal(COIN) * self.price_at_timestamp(tx_hash, fx.timestamp_rate)
+        return Decimal(int(value_sat)) / Decimal(COIN) * self.price_at_timestamp(tx_hash, fx.timestamp_rate)
 
     def get_tx_item_fiat(
             self,
@@ -1140,7 +1140,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         item['fiat_fee'] = Fiat(fiat_fee, fx.ccy) if fiat_fee is not None else None
         item['fiat_default'] = fiat_default
         if amount_sat < 0:
-            acquisition_price = - amount_sat / Decimal(COIN) * self.average_price(tx_hash, fx.timestamp_rate, fx.ccy)
+            acquisition_price = - int(amount_sat) / Decimal(COIN) * self.average_price(tx_hash, fx.timestamp_rate, fx.ccy)
             liquidation_price = - fiat_value
             item['acquisition_price'] = Fiat(acquisition_price, fx.ccy)
             cg = liquidation_price - acquisition_price
@@ -2441,8 +2441,9 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         for addr in txi_addresses:
             d = self.db.get_txi_addr(txid, addr)
             for ser, v in d:
-                input_value += v
-                total_price += self.coin_price(ser.split(':')[0], price_func, ccy, v)
+                # We only care about normal RVN for price
+                input_value += v.rvn_value.value
+                total_price += self.coin_price(ser.split(':')[0], price_func, ccy, v.rvn_value.value)
         return total_price / (input_value/Decimal(COIN))
 
     def clear_coin_price_cache(self):
