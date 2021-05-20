@@ -100,7 +100,7 @@ class UTXOList(MyTreeView):
         name_short = utxo.prevout.txid.hex()[:16] + '...' + ":%d" % utxo.prevout.out_idx
         self._utxo_dict[name] = utxo
         label = self.wallet.get_label_for_txid(utxo.prevout.txid.hex()) or self.wallet.get_label(address)
-        amount = self.parent.format_amount(utxo.value_sats(), whitespaces=True)
+        amount = self.parent.format_amount(utxo.value_sats().rvn_value, whitespaces=True)
         labels = [name_short, address, label, amount, '%d'%height]
         utxo_item = [QStandardItem(x) for x in labels]
         self.set_editability(utxo_item)

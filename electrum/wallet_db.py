@@ -484,7 +484,7 @@ class WalletDB(JsonDB):
             tx = Transaction(raw_tx)
             for idx, txout in enumerate(tx.outputs()):
                 outpoint = f"{txid}:{idx}"
-                scripthash = script_to_scripthash(txout.scriptpubkey.hex())
+                scripthash = script_to_scripthash(txout.scriptpubkey)
                 prevouts_by_scripthash[scripthash].append((outpoint, txout.value))
         self.put('prevouts_by_scripthash', prevouts_by_scripthash)
 
@@ -816,12 +816,32 @@ class WalletDB(JsonDB):
     def _convert_version_41(self):
         if not self._is_upgrade_method_needed(40, 40):
             return
+        txi = self.data.get('txi', {})
+        txi = {txi_hash:
+                   {addr:
+                        {ser: RavenValue(v) for ser, v in d2.items()}
+                    for addr, d2 in d1.items()}
+               for txi_hash, d1 in txi.items()}
+        self.data['txi'] = txi
+
+        txo = self.data.get('txo', {})
+        txo = {tx_hash:
+                   {addr:
+                        {pos: (RavenValue(v), cb) for pos, (v, cb) in d2.items()}
+                    for addr, d2 in d1.items()}
+               for tx_hash, d1 in txo.items()}
+        self.data['txo'] = txo
+
+        # This seems to be updated to RavenValues in an earlier update
+        # prev = self.data.get('prevouts_by_scripthash', {})
+        # prev = {scripthash: [(out, RavenValue(v)) for (out, v) in lst] for scripthash, lst in prev.items()}
+        # self.data['prevouts_by_scripthash'] = prev
+
         # Clear history to mark re-download for assets
         self._load_transactions()
         self.clear_history()
         self.data['stored_height'] = 0
         self.data['seed_version'] = 41
-        self.set_modified(True)
 
 
     def _convert_imported(self):
@@ -1287,41 +1307,14 @@ class WalletDB(JsonDB):
                 continue
             asset_dict[asset] = AssetMeta(a_dict[0], a_dict[1], a_dict[2], a_dict[3], a_dict[4])
         self.asset = asset_dict                                  # type: Dict[str, AssetMeta]
-        # txid -> address -> prev_outpoint -> value
-        txi_dict = {}
-        for txid, txid_dict in self.get_dict('txi').items():
-            for address, address_dict in txid_dict.items():
-                for prev_outpoint, value_dict in address_dict.items():
-                    try:
-                        txi_dict[txid][address][prev_outpoint] = RavenValue.from_json(value_dict)
-                    except (TypeError, AssertionError):
-                        continue
-        self.txi = txi_dict                                      # type: Dict[str, Dict[str, Dict[str, RavenValue]]]
-        # txid -> address -> output_index -> (value, is_coinbase)
-        txo_dict = {}
-        for txid, txid_dict in self.get_dict('txo').items():
-            for address, address_dict in txid_dict.items():
-                for output_index, (value_dict, coinbase) in address_dict.items():
-                    try:
-                        txo_dict[txid][address][output_index] = (RavenValue.from_json(value_dict), coinbase)
-                    except (TypeError, AssertionError):
-                        continue
-        self.txo = txo_dict                                      # type: Dict[str, Dict[str, Dict[str, Tuple[RavenValue, bool]]]]
+        self.txi = self.get_dict('txi')                          # type: Dict[str, Dict[str, Dict[str, RavenValue]]]
+        self.txo = self.get_dict('txo')                          # type: Dict[str, Dict[str, Dict[str, Tuple[RavenValue, bool]]]]
         self.transactions = self.get_dict('transactions')        # type: Dict[str, Transaction]
         self.spent_outpoints = self.get_dict('spent_outpoints')  # txid -> output_index -> next_txid
         self.history = self.get_dict('addr_history')             # address -> list of (txid, height)
         self.verified_tx = self.get_dict('verified_tx3')         # txid -> (height, timestamp, txpos, header_hash)
         self.tx_fees = self.get_dict('tx_fees')                  # type: Dict[str, TxFeesValue]
-        # scripthash -> set of (outpoint, value)
-        _prevouts_by_scripthash_dict = {}
-        for scripthash, scripthash_list in self.get_dict('prevouts_by_scripthash').items():
-            _prevouts_by_scripthash_dict[scripthash] = set()
-            for outpoint, value_dict in scripthash_list:
-                try:
-                    _prevouts_by_scripthash_dict[scripthash].add((outpoint, RavenValue.from_json(value_dict)))
-                except (TypeError, AssertionError):
-                    continue
-        self._prevouts_by_scripthash = _prevouts_by_scripthash_dict  # type: Dict[str, Set[Tuple[str, RavenValue]]]
+        self._prevouts_by_scripthash = self.get_dict('prevouts_by_scripthash')  # type: Dict[str, Set[Tuple[str, RavenValue]]]
         # remove unreferenced tx
         for tx_hash in list(self.transactions.keys()):
             if not self.get_txi_addresses(tx_hash) and not self.get_txo_addresses(tx_hash):
@@ -1367,7 +1360,11 @@ class WalletDB(JsonDB):
         elif key == 'tx_fees':
             v = dict((k, TxFeesValue(*x)) for k, x in v.items())
         elif key == 'prevouts_by_scripthash':
-            v = dict((k, {(prevout, value) for (prevout, value) in x}) for k, x in v.items())
+            v = dict((k, {(prevout, value if isinstance(value, RavenValue) else RavenValue.from_json(value)) for (prevout, value) in x}) for k, x in v.items())
+        elif key == 'txo':
+            v = {txid: {addr: {pos: (v if isinstance(v, RavenValue) else RavenValue.from_json(v), cb) for pos, (v, cb) in d2.items()} for addr, d2 in d1.items()} for txid, d1 in v.items()}
+        elif key == 'txi':
+            v = {txid: {addr: {ser: v if isinstance(v, RavenValue) else RavenValue.from_json(v) for ser, v in d2.items()} for addr, d2 in d1.items()} for txid, d1 in v.items()}
         elif key == 'buckets':
             v = dict((k, ShachainElement(bfh(x[0]), int(x[1]))) for k, x in v.items())
         elif key == 'data_loss_protect_remote_pcp':

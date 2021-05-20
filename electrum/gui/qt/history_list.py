@@ -121,6 +121,7 @@ def get_item_key(tx_item):
 class HistoryNodeData(NamedTuple):
     lightning: bool
     timestamp: Optional[int]
+    type: Optional[str]
     txid: Optional[str]
     confirmations: int
     label: Optional[str]
@@ -365,6 +366,7 @@ class HistoryModel(CustomModel, Logger):
             fiat_gain = tx_item.get('capital_gain')
             payment_hash = tx_item.get('payment_hash')
             height = tx_item.get('height')
+            type = tx_item.get('type')
 
             if value.rvn_value != 0:
                 asset_name = None
@@ -385,7 +387,8 @@ class HistoryModel(CustomModel, Logger):
                     acqu_price=acqu_price,
                     fiat_gain=fiat_gain,
                     payment_hash=payment_hash,
-                    height=height
+                    height=height,
+                    type=type
                 )
                 self.add_history_node(node_data, parents, tx_item)
 
@@ -408,7 +411,8 @@ class HistoryModel(CustomModel, Logger):
                     acqu_price=acqu_price,
                     fiat_gain=fiat_gain,
                     payment_hash=payment_hash,
-                    height=height
+                    height=height,
+                    type=type
                 )
                 self.add_history_node(node_data, parents, tx_item)
 
@@ -758,22 +762,22 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         idx = self.indexAt(event.pos())
         if not idx.isValid():
             return
-        tx_item = self.tx_item_from_proxy_row(idx.row())
+        tx_item = self.tx_item_from_proxy_row(idx.row()) # type: HistoryNodeData
         if self.hm.flags(self.model().mapToSource(idx)) & Qt.ItemIsEditable:
             super().mouseDoubleClickEvent(event)
         else:
-            if tx_item.get('lightning'):
-                if tx_item['type'] == 'payment':
+            if tx_item.lightning:
+                if tx_item.type == 'payment':
                     self.parent.show_lightning_transaction(tx_item)
                 return
-            tx_hash = tx_item['txid']
+            tx_hash = tx_item.txid
             tx = self.wallet.db.get_transaction(tx_hash)
             if not tx:
                 return
             self.show_transaction(tx_item, tx)
 
-    def show_transaction(self, tx_item, tx):
-        tx_hash = tx_item['txid']
+    def show_transaction(self, tx_item: HistoryNodeData, tx):
+        tx_hash = tx_item.txid
         label = self.wallet.get_label_for_txid(tx_hash) or None # prefer 'None' if not defined (force tx dialog to hide Description field if missing)
         self.parent.show_transaction(tx, tx_desc=label)
 

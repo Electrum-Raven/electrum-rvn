@@ -281,6 +281,12 @@ class Satoshis(object):
     def __bool__(self):
         return bool(self.value)
 
+    def __copy__(self):
+        return Satoshis(self.value)
+
+    def __deepcopy__(self, memo):
+        return self.__copy__()
+
     def to_bytes(self, length, byteorder, *, signed=False):
         return self.value.to_bytes(length=length, byteorder=byteorder, signed=signed)
 

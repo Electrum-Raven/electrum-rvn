@@ -97,7 +97,7 @@ class RavenValue:  # The raw RVN value as well as asset values of a transaction
         assert 'RVN' in d and 'ASSETS' in d
         return RavenValue(d['RVN'], d['ASSETS'])
 
-    def __init__(self, rvn=0, assets=None):
+    def __init__(self, rvn: Union[int, Satoshis] = 0, assets=None):
         if assets is None:
             assets = {}
         assert isinstance(rvn, int) or isinstance(rvn, Satoshis)
@@ -106,7 +106,7 @@ class RavenValue:  # The raw RVN value as well as asset values of a transaction
             self.__rvn_value = Satoshis(rvn)
         else:
             self.__rvn_value = rvn
-        self.__asset_value = {k: Satoshis(v) for k, v in assets.items()}
+        self.__asset_value = {k: (Satoshis(v) if isinstance(v, int) else v) for k, v in assets.items()}
 
     @property
     def rvn_value(self) -> Satoshis:
@@ -145,10 +145,21 @@ class RavenValue:  # The raw RVN value as well as asset values of a transaction
         k2 = hash(frozenset(self.__asset_value.items()))
         return int((k1 + k2) * (k1 + k2 + 1) / 2 + k2)
 
+    def __copy__(self):
+        return RavenValue(self.__rvn_value, self.__asset_value)
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            setattr(result, k, copy.deepcopy(v))
+        return result
+
     def to_json(self):
         d = {
-            'RVN': self.rvn_value,
-            'ASSETS': self.assets,
+            'RVN': self.rvn_value.value,
+            'ASSETS': {k: v.value for k, v in self.assets.items()},
         }
         return d
 
@@ -541,7 +552,16 @@ def get_script_type_from_output_script(_bytes: bytes) -> Optional[str]:
         return 'p2wsh'
     return None
 
+
 def get_address_from_output_script(_bytes: bytes, *, net=None) -> Optional[str]:
+
+    # Cut off assets if any for correct address -> scripthash <- script
+    if len(_bytes) > 22 and _bytes[0] == 0xA9 and _bytes[1] == 0x14 and _bytes[22] == 0x87:  # Script hash
+        end = 23
+    else:  # Assumed Pubkey hash
+        end = 25
+    _bytes = _bytes[:end]
+
     try:
         decoded = [x for x in script_GetOp(_bytes)]
     except MalformedBitcoinScript:
@@ -591,9 +611,9 @@ def get_assets_from_script(script: bytes) -> Dict[str, int]:
 
     def search_for_rvn(b: bytes, start: int) -> int:
         index = -1
-        if b[start:start+3] == 'rvn':
+        if b[start:start+3] == b'rvn':
             index = start+3
-        elif b[start+1:start+4] == 'rvn':
+        elif b[start+1:start+4] == b'rvn':
             index = start+4
         return index
 
@@ -636,8 +656,6 @@ def multisig_script(public_keys: Sequence[str], m: int) -> str:
     n = len(public_keys)
     assert 1 <= m <= n <= 15, f'm {m}, n {n}'
     return construct_script([m, *public_keys, n, opcodes.OP_CHECKMULTISIG])
-
-
 
 
 class Transaction:
@@ -1940,18 +1958,18 @@ class PartialTransaction(Transaction):
             self._outputs.sort(key = lambda o: (o.value, o.scriptpubkey))
         self.invalidate_ser_cache()
 
-    def input_value(self) -> int:
+    def input_value(self) -> RavenValue:
         input_values = [txin.value_sats() for txin in self.inputs()]
         if any([val is None for val in input_values]):
             raise MissingTxInputAmount()
         return sum(input_values)
 
-    def output_value(self) -> int:
+    def output_value(self) -> RavenValue:
         return sum(o.value for o in self.outputs())
 
     def get_fee(self) -> Optional[int]:
         try:
-            return self.input_value() - self.output_value()
+            return (self.input_value() - self.output_value()).rvn_value.value
         except MissingTxInputAmount:
             return None
 

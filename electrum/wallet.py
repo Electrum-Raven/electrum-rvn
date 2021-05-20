@@ -252,7 +252,7 @@ class TxWalletDetails(NamedTuple):
     can_cpfp: bool
     can_dscancel: bool  # whether user can double-spend to self
     can_save_as_local: bool
-    amount: Optional[int]
+    amount: Optional[RavenValue]
     fee: Optional[int]
     tx_mined_status: TxMinedInfo
     mempool_depth_bytes: Optional[int]

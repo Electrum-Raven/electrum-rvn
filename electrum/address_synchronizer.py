@@ -321,7 +321,7 @@ class AddressSynchronizer(Logger):
             for n, txo in enumerate(tx.outputs()):
                 v = txo.value
                 ser = tx_hash + ':%d'%n
-                scripthash = ravencoin.script_to_scripthash(txo.scriptpubkey.hex())
+                scripthash = ravencoin.script_to_scripthash(txo.scriptpubkey)
                 self.db.add_prevout_by_scripthash(scripthash, prevout=TxOutpoint.from_str(ser), value=v)
                 addr = self.get_txout_address(txo)
                 if addr and self.is_mine(addr):
@@ -708,7 +708,7 @@ class AddressSynchronizer(Logger):
                     is_relevant = True
         delta = v_out_mine - v_in_mine
         if v_in is not None:
-            fee = v_in - v_out
+            fee = (v_in - v_out).rvn_value.value
         else:
             fee = None
         if fee is None and isinstance(tx, PartialTransaction):

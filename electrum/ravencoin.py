@@ -508,11 +508,18 @@ def address_to_hash(addr: str, *, net=None) -> Tuple[OnchainOutputType, bytes]:
 
 def address_to_scripthash(addr: str, *, net=None) -> str:
     script = address_to_script(addr, net=net)
-    return script_to_scripthash(script)
+    return script_to_scripthash(bfh(script))
 
 
-def script_to_scripthash(script: str) -> str:
-    h = sha256(bfh(script))[0:32]
+def script_to_scripthash(script: bytes) -> str:
+    assert isinstance(script, bytes)
+    # Cut off assets if any for correct address -> scripthash <- script
+    if len(script) > 22 and script[0] == 0xA9 and script[1] == 0x14 and script[22] == 0x87:  # Script hash
+        end = 23
+    else:  # Assumed Pubkey hash
+        end = 25
+    script = script[:end]
+    h = sha256(script)[0:32]
     return bh2u(bytes(reversed(h)))
 
 def public_key_to_p2pk_script(pubkey: str) -> str:

@@ -436,7 +436,7 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         tx_details = self.wallet.get_tx_info(self.tx)
         tx_mined_status = tx_details.tx_mined_status
         exp_n = tx_details.mempool_depth_bytes
-        amount, fee = tx_details.amount, tx_details.fee
+        amount, fee = tx_details.amount.rvn_value, tx_details.fee
         size = self.tx.estimated_size()
         txid = self.tx.txid()
         fx = self.main_window.fx
