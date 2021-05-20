@@ -184,6 +184,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if wallet.has_lightning():
             self.wallet.config.set_key('show_channels_tab', True)
 
+        self.asset_blacklist = self.wallet.config.get('asset_blacklist', [])
+        self.asset_whitelist = self.wallet.config.get('asset_whitelist', [])
+
         self.setup_exception_hook()
 
         self.network = gui_object.daemon.network  # type: Network
@@ -216,11 +219,13 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.send_tab = self.create_send_tab()
         self.receive_tab = self.create_receive_tab()
         self.addresses_tab = self.create_addresses_tab()
+        self.assets_tab = self.create_assets_tab()
         self.utxo_tab = self.create_utxo_tab()
         self.console_tab = self.create_console_tab()
         self.contacts_tab = self.create_contacts_tab()
         self.channels_tab = self.create_channels_tab()
         tabs.addTab(self.create_history_tab(), read_QIcon("tab_history.png"), _('History'))
+        tabs.addTab(self.assets_tab, read_QIcon('tab_assets.png'), _('Assets'))
         tabs.addTab(self.send_tab, read_QIcon("tab_send.png"), _('Send'))
         tabs.addTab(self.receive_tab, read_QIcon("tab_receive.png"), _('Receive'))
 
@@ -248,7 +253,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
         self.setCentralWidget(central_widget)
 
-        if self.config.get("is_maximized"):
+        if self.config.get("is_maximized", False):
             self.showMaximized()
 
         self.setWindowIcon(read_QIcon("electrum.png"))
@@ -542,10 +547,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         try:
             screen = self.app.desktop().screenGeometry()
             assert screen.contains(QRect(*winpos))
-            self.setGeometry(*winpos)
+            if not self.isMaximized():
+                self.setGeometry(*winpos)
         except:
             self.logger.info("using default geometry")
-            self.setGeometry(100, 100, 840, 400)
+            if not self.isMaximized():
+                self.setGeometry(100, 100, 840, 400)
 
     def watching_only_changed(self):
         name = "Electrum Testnet" if constants.net.TESTNET else "Electrum"
@@ -764,6 +771,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if self.network and self.network.local_watchtower:
             tools_menu.addAction(_("Local &Watchtower"), self.gui_object.show_watchtower_dialog)
         tools_menu.addAction(_("&Plugins"), self.plugins_dialog)
+        tools_menu.addAction(_("&Log viewer"), self.logview_dialog)
         tools_menu.addSeparator()
         tools_menu.addAction(_("&Sign/verify message"), self.sign_verify_message)
         tools_menu.addAction(_("&Encrypt/decrypt message"), self.encrypt_message)
@@ -782,7 +790,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         help_menu = menubar.addMenu(_("&Help"))
         help_menu.addAction(_("&About"), self.show_about)
         help_menu.addAction(_("&Check for updates"), self.show_update_check)
-        help_menu.addAction(_("&Official website"), lambda: webopen("https://electrum.org"))
+        help_menu.addAction("&RVN Electrum Wiki", lambda: webopen("https://raven.wiki/wiki/Electrum"))
+        help_menu.addAction("&GetRavencoin.org", lambda: webopen("https://GetRavencoin.org"))
         help_menu.addSeparator()
         help_menu.addAction(_("&Documentation"), lambda: webopen("http://docs.electrum.org/")).setShortcut(
             QKeySequence.HelpContents)
@@ -798,7 +807,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         d = self.network.get_donation_address()
         if d:
             host = self.network.get_parameters().server.host
-            self.pay_to_URI('bitcoin:%s?message=donation for %s' % (d, host))
+            self.pay_to_URI('raven:%s?message=donation for %s' % (d, host))
         else:
             self.show_error(_('No donation address for this server'))
 
@@ -1044,6 +1053,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.history_model.refresh('update_tabs')
         self.request_list.update()
         self.address_list.update()
+        self.asset_list.update()
         self.utxo_list.update()
         self.contact_list.update()
         self.invoice_list.update()
@@ -1070,6 +1080,17 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         from . import address_dialog
         d = address_dialog.AddressDialog(self, addr)
         d.exec_()
+
+    def show_asset(self, asset):
+        from . import asset_dialog
+        d = asset_dialog.AssetDialog(self, asset)
+        d.exec_()
+
+    def hide_asset(self, asset):
+        self.asset_blacklist.append('^'+asset+'$')
+        self.config.set_key('asset_blacklist', self.asset_blacklist, True)
+        self.asset_list.update()
+        self.history_model.refresh('Marked asset as spam')
 
     def show_channel(self, channel_id):
         from . import channel_details
@@ -2115,6 +2136,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         toolbar_shown = bool(self.config.get('show_toolbar_addresses', False))
         l.show_toolbar(toolbar_shown)
         return tab
+
+    def create_assets_tab(self):
+        from .asset_list import AssetList
+        self.asset_list = l = AssetList(self)
+        toolbar = l.create_toolbar(self.config)
+        return self.create_list_tab(l, toolbar)
 
     def create_utxo_tab(self):
         from .utxo_list import UTXOList
@@ -3216,6 +3243,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                             + f' ({len(bad_inputs)}):\n' + msg)
         self.address_list.update()
         self.history_list.update()
+        self.asset_list.update()
 
     def import_addresses(self):
         if not self.wallet.can_import_address():
@@ -3251,6 +3279,13 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if self.fx:
             self.fx.trigger_update()
         run_hook('close_settings_dialog')
+        if d.save_blacklist:
+            self.config.set_key('asset_blacklist', self.asset_blacklist, True)
+        if d.save_whitelist:
+            self.config.set_key('asset_whitelist', self.asset_whitelist, True)
+        if d.save_whitelist or d.save_blacklist:
+            self.asset_list.update()
+            self.history_model.refresh('Changed asset white or black list')
         if d.need_restart:
             self.show_warning(_('Please restart Electrum to activate the new GUI settings'), title=_('Success'))
 
@@ -3284,6 +3319,40 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.tray = None
         self.gui_object.timer.timeout.disconnect(self.timer_actions)
         self.gui_object.close_window(self)
+
+    def logview_dialog(self):
+        from electrum.logging import get_logfile_path, electrum_logger
+
+        def watch_file(fn,logviewer):
+        # poor man's tail
+           if os.path.exists(fn):
+              mtime = os.path.getmtime(fn)
+              if mtime > self.logfile_mtime:
+                 # file modified
+                 self.logfile_mtime = mtime
+                 logviewer.clear()
+                 with open(fn,"r") as f:
+                    for line in f:
+                       logviewer.append(line.partition('Z |')[2].lstrip(' ').rstrip('\n'))
+
+        d = WindowModalDialog(self, _('Log Viewer'))
+        d.setMinimumSize(610, 290)
+        layout = QGridLayout(d)
+        self.logviewer = QTextEdit()
+        self.logviewer.setAcceptRichText(False)
+        self.logviewer.setReadOnly(True)
+        self.logviewer.setPlainText(_("Enable 'Write logs to file' in Preferences -> General and restart Electrum-RVN to view logs here"))
+        layout.addWidget(self.logviewer, 1, 1)
+        logfile = get_logfile_path()
+        self.logtimer = QTimer(self)
+        if logfile is not None:
+           load_logfile = partial(watch_file,logfile,self.logviewer)
+           self.logfile_mtime = 0
+           load_logfile()
+           self.logtimer.timeout.connect(load_logfile)
+           self.logtimer.start(2500)
+        d.exec_()
+        self.logtimer.stop()
 
     def plugins_dialog(self):
         self.pluginsdialog = d = WindowModalDialog(self, _('Electrum Plugins'))

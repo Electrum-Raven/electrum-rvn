@@ -59,9 +59,7 @@ if TYPE_CHECKING:
     from electrum.wallet import Abstract_Wallet
     from .main_window import ElectrumWindow
 
-
 _logger = get_logger(__name__)
-
 
 try:
     from electrum.plot import plot_history, NothingToPlotException
@@ -83,7 +81,6 @@ TX_ICONS = [
     "confirmed.png",
 ]
 
-
 ROLE_SORT_ORDER = Qt.UserRole + 1000
 
 
@@ -97,6 +94,7 @@ class HistoryColumns(IntEnum):
     FIAT_ACQ_PRICE = 6
     FIAT_CAP_GAINS = 7
     TXID = 8
+
 
 class HistorySortModel(QSortFilterProxyModel):
     def lessThan(self, source_left: QModelIndex, source_right: QModelIndex):
@@ -169,7 +167,7 @@ class HistoryNode(CustomNode):
         if role == ROLE_SORT_ORDER:
             d = {
                 HistoryColumns.STATUS:
-                    # respect sort order of self.transactions (wallet.get_full_history)
+                # respect sort order of self.transactions (wallet.get_full_history)
                     -index.row(),
                 HistoryColumns.DESCRIPTION:
                     tx_item.label,
@@ -211,7 +209,7 @@ class HistoryNode(CustomNode):
             elif col > HistoryColumns.DESCRIPTION and role == Qt.FontRole:
                 monospace_font = QFont(MONOSPACE_FONT)
                 return QVariant(monospace_font)
-            #elif col == HistoryColumns.DESCRIPTION and role == Qt.DecorationRole and not is_lightning\
+            # elif col == HistoryColumns.DESCRIPTION and role == Qt.DecorationRole and not is_lightning\
             #        and self.parent.wallet.invoices.paid.get(tx_hash):
             #    return QVariant(read_QIcon("seal"))
             elif col in (HistoryColumns.DESCRIPTION, HistoryColumns.AMOUNT) \
@@ -417,12 +415,13 @@ class HistoryModel(CustomModel, Logger):
                 self.add_history_node(node_data, parents, tx_item)
 
         new_length = self._root.childCount()
-        self.beginInsertRows(QModelIndex(), 0, new_length-1)
+        self.beginInsertRows(QModelIndex(), 0, new_length - 1)
         self.transactions = transactions
         self.endInsertRows()
 
         if selected_row:
-            self.view.selectionModel().select(self.createIndex(selected_row, 0), QItemSelectionModel.Rows | QItemSelectionModel.SelectCurrent)
+            self.view.selectionModel().select(self.createIndex(selected_row, 0),
+                                              QItemSelectionModel.Rows | QItemSelectionModel.SelectCurrent)
         self.view.filter()
         # update time filter
         if not self.view.years and self.transactions:
@@ -443,6 +442,7 @@ class HistoryModel(CustomModel, Logger):
     def set_visibility_of_columns(self):
         def set_visible(col: int, b: bool):
             self.view.showColumn(col) if b else self.view.hideColumn(col)
+
         # txid
         set_visible(HistoryColumns.TXID, False)
         # fiat
@@ -470,10 +470,10 @@ class HistoryModel(CustomModel, Logger):
             return
         self.tx_status_cache[tx_hash] = self.parent.wallet.get_tx_status(tx_hash, tx_mined_info)
         tx_item.update({
-            'confirmations':  tx_mined_info.conf,
-            'timestamp':      tx_mined_info.timestamp,
+            'confirmations': tx_mined_info.conf,
+            'timestamp': tx_mined_info.timestamp,
             'txpos_in_block': tx_mined_info.txpos,
-            'date':           timestamp_to_datetime(tx_mined_info.timestamp),
+            'date': timestamp_to_datetime(tx_mined_info.timestamp),
         })
         topLeft = self.createIndex(row, 0)
         bottomRight = self.createIndex(row, len(HistoryColumns) - 1)
@@ -498,9 +498,9 @@ class HistoryModel(CustomModel, Logger):
         fiat_acq_title = 'n/a fiat acquisition price'
         fiat_cg_title = 'n/a fiat capital gains'
         if fx and fx.show_history():
-            fiat_title = '%s '%fx.ccy + _('Value')
-            fiat_acq_title = '%s '%fx.ccy + _('Acquisition price')
-            fiat_cg_title =  '%s '%fx.ccy + _('Capital Gains')
+            fiat_title = '%s ' % fx.ccy + _('Value')
+            fiat_acq_title = '%s ' % fx.ccy + _('Acquisition price')
+            fiat_cg_title = '%s ' % fx.ccy + _('Capital Gains')
         return {
             HistoryColumns.STATUS: _('Date'),
             HistoryColumns.DESCRIPTION: _('Description'),
@@ -534,6 +534,7 @@ class HistoryModel(CustomModel, Logger):
                                     conf=confirmations,
                                     timestamp=timestamp)
         return tx_mined_info
+
 
 class HistoryList(MyTreeView, AcceptFileDragDrop):
     filter_columns = [HistoryColumns.STATUS,
@@ -600,7 +601,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
             except:
                 return
             self.start_date = datetime.datetime(year, 1, 1)
-            self.end_date = datetime.datetime(year+1, 1, 1)
+            self.end_date = datetime.datetime(year + 1, 1, 1)
             self.start_button.setText(_('From') + ' ' + self.format_date(self.start_date))
             self.end_button.setText(_('To') + ' ' + self.format_date(self.end_date))
         self.hide_rows()
@@ -640,8 +641,10 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         d.setMinimumSize(600, 150)
         d.date = None
         vbox = QVBoxLayout()
+
         def on_date(date):
             d.date = date
+
         cal = QCalendarWidget()
         cal.setGridVisible(True)
         cal.clicked[QDate].connect(on_date)
@@ -662,8 +665,8 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
             self.parent.show_message(_("Enable fiat exchange rate with history."))
             return
         h = self.wallet.get_detailed_history(
-            from_timestamp = time.mktime(self.start_date.timetuple()) if self.start_date else None,
-            to_timestamp = time.mktime(self.end_date.timetuple()) if self.end_date else None,
+            from_timestamp=time.mktime(self.start_date.timetuple()) if self.start_date else None,
+            to_timestamp=time.mktime(self.end_date.timetuple()) if self.end_date else None,
             fx=fx)
         summary = h['summary']
         if not summary:
@@ -747,7 +750,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         column = index.column()
         key = get_item_key(tx_item)
         if column == HistoryColumns.DESCRIPTION:
-            if self.wallet.set_label(key, text): #changed
+            if self.wallet.set_label(key, text):  # changed
                 self.hm.update_label(index)
                 self.parent.update_completions()
         elif column == HistoryColumns.FIAT_VALUE:
@@ -762,7 +765,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         idx = self.indexAt(event.pos())
         if not idx.isValid():
             return
-        tx_item = self.tx_item_from_proxy_row(idx.row()) # type: HistoryNodeData
+        tx_item = self.tx_item_from_proxy_row(idx.row())  # type: HistoryNodeData
         if self.hm.flags(self.model().mapToSource(idx)) & Qt.ItemIsEditable:
             super().mouseDoubleClickEvent(event)
         else:
@@ -778,7 +781,8 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
 
     def show_transaction(self, tx_item: HistoryNodeData, tx):
         tx_hash = tx_item.txid
-        label = self.wallet.get_label_for_txid(tx_hash) or None # prefer 'None' if not defined (force tx dialog to hide Description field if missing)
+        label = self.wallet.get_label_for_txid(
+            tx_hash) or None  # prefer 'None' if not defined (force tx dialog to hide Description field if missing)
         self.parent.show_transaction(tx, tx_desc=label)
 
     def add_copy_menu(self, menu, idx):
@@ -806,7 +810,8 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
             menu = QMenu()
             menu.addAction(_("View Payment"), lambda: self.parent.show_lightning_transaction(tx_item))
             cc = self.add_copy_menu(menu, idx)
-            cc.addAction(_("Payment Hash"), lambda: self.place_text_on_clipboard(tx_item['payment_hash'], title="Payment Hash"))
+            cc.addAction(_("Payment Hash"),
+                         lambda: self.place_text_on_clipboard(tx_item['payment_hash'], title="Payment Hash"))
             cc.addAction(_("Preimage"), lambda: self.place_text_on_clipboard(tx_item['preimage'], title="Preimage"))
             key = tx_item['payment_hash']
             log = self.wallet.lnworker.logs.get(key)
@@ -894,7 +899,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         vbox.addStretch(1)
         hbox = Buttons(CancelButton(d), OkButton(d, _('Export')))
         vbox.addLayout(hbox)
-        #run_hook('export_history_dialog', self, hbox)
+        # run_hook('export_history_dialog', self, hbox)
         self.update()
         if not d.exec_():
             return

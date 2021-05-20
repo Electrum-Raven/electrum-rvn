@@ -109,7 +109,7 @@ class SimpleConfig(Logger):
             decimal_point_to_base_unit_name(self.decimal_point)
         except UnknownBaseUnit:
             self.decimal_point = DECIMAL_POINT_DEFAULT
-        self.num_zeros = int(self.get('num_zeros', 0))
+        self.num_zeros = int(self.get('num_zeros', 1))
 
     def electrum_path(self):
         # Read electrum_path from command line
