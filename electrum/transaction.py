@@ -171,19 +171,20 @@ class AssetMeta(NamedTuple):
     name: str
     is_owner: bool
     is_reissuable: bool
+    divisions: int
     has_ipfs: bool
-    ipfs_str: str
+    ipfs_str: Optional[str]
 
 
 class TxOutput:
     scriptpubkey: bytes
-    value: RavenValue
+    value: Union[RavenValue, str]
 
-    def __init__(self, *, scriptpubkey: bytes, value: RavenValue):
+    def __init__(self, *, scriptpubkey: bytes, value: Union[RavenValue, str]):
         assert isinstance(scriptpubkey, bytes)
-        assert isinstance(value, RavenValue)
+        assert isinstance(value, RavenValue) or isinstance(value, str)
         self.scriptpubkey = scriptpubkey
-        self.value = value  # deprecated: str when the output is set to max: '!'  # in satoshis
+        self.value = value  # str when the rvn output is set to max: '!'
 
     @classmethod
     def from_address_and_value(cls, address: str, value: RavenValue) -> Union['TxOutput', 'PartialTxOutput']:

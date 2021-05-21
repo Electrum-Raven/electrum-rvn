@@ -881,7 +881,7 @@ class Network(Logger, NetworkRetryManager[ServerAddr]):
 
     @best_effort_reliable
     @catch_server_exceptions
-    async def getmeta_for_asset(self, name: str) -> List[dict]:
+    async def get_meta_for_asset(self, name: str) -> dict:
         return await self.interface.session.send_request('blockchain.asset.get_meta', [name])
 
     @best_effort_reliable

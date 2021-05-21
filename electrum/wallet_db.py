@@ -923,6 +923,10 @@ class WalletDB(JsonDB):
         raise WalletFileException(msg)
 
     @locked
+    def get_assets(self) -> Iterable[str]:
+        return list(sorted(self.asset.keys()))
+
+    @locked
     def get_asset_meta(self, asset: str) -> AssetMeta:
         assert isinstance(asset, str)
         return self.asset.get(asset, None)
@@ -1301,12 +1305,7 @@ class WalletDB(JsonDB):
         self.data = StoredDict(self.data, self, [])
         # references in self.data
         # TODO make all these private
-        asset_dict = {}
-        for asset, a_dict in self.get_dict('asset_meta').items():
-            if len(a_dict) != 5:
-                continue
-            asset_dict[asset] = AssetMeta(a_dict[0], a_dict[1], a_dict[2], a_dict[3], a_dict[4])
-        self.asset = asset_dict                                  # type: Dict[str, AssetMeta]
+        self.asset = self.get_dict('asset_meta')                 # type: Dict[str, AssetMeta]
         self.txi = self.get_dict('txi')                          # type: Dict[str, Dict[str, Dict[str, RavenValue]]]
         self.txo = self.get_dict('txo')                          # type: Dict[str, Dict[str, Dict[str, Tuple[RavenValue, bool]]]]
         self.transactions = self.get_dict('transactions')        # type: Dict[str, Transaction]
@@ -1369,6 +1368,9 @@ class WalletDB(JsonDB):
             v = dict((k, ShachainElement(bfh(x[0]), int(x[1]))) for k, x in v.items())
         elif key == 'data_loss_protect_remote_pcp':
             v = dict((k, bfh(x)) for k, x in v.items())
+        elif key == 'asset_meta':
+            v = dict((k, AssetMeta(name, ownr, reis, div, ipfs, data))
+                     for k, (name, ownr, reis, div, ipfs, data) in v.items())
         return v
 
     def _convert_value(self, path, key, v):

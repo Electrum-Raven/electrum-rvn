@@ -24,28 +24,30 @@
 # SOFTWARE.
 
 from enum import IntEnum
+from typing import List, Dict
 
 from PyQt5.QtCore import Qt, QPersistentModelIndex, QModelIndex
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont
-from PyQt5.QtWidgets import QAbstractItemView, QComboBox, QLabel, QMenu
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QMouseEvent
+from PyQt5.QtWidgets import QAbstractItemView, QComboBox, QLabel, QMenu, QCheckBox
 
 from electrum.i18n import _
-from electrum.util import block_explorer_URL, profiler
+from electrum.util import ipfs_explorer_URL, profiler
 from electrum.plugin import run_hook
 from electrum.ravencoin import is_address
 from electrum.wallet import InternalAddressCorruption
+from electrum.transaction import AssetMeta
 
-from .util import MyTreeView, MONOSPACE_FONT, ColorScheme, webopen, MySortModel
+from .util import MyTreeView, MONOSPACE_FONT, webopen, MySortModel
 
 
 class AssetList(MyTreeView):
-
     class Columns(IntEnum):
         NAME = 0
         BALANCE = 1
         IPFS = 2
         REISSUABLE = 3
         DIVISIONS = 4
+        OWNER = 5
 
     filter_columns = [Columns.NAME, Columns.BALANCE, Columns.IPFS, Columns.REISSUABLE, Columns.DIVISIONS]
 
@@ -67,6 +69,46 @@ class AssetList(MyTreeView):
         self.sortByColumn(self.Columns.NAME, Qt.AscendingOrder)
         self.asset_meta = {}
 
+    def webopen_safe(self, url):
+        show_warn = self.parent.config.get('show_ipfs_warning', True)
+        if show_warn:
+            cb = QCheckBox(_("Don't show this message again."))
+            cb_checked = False
+
+            def on_cb(x):
+                nonlocal cb_checked
+                cb_checked = x == Qt.Checked
+
+            cb.stateChanged.connect(on_cb)
+            goto = self.parent.question(_('You are about to visit:\n\n'
+                                          '{}\n\n'
+                                          'IPFS hashes can link to anything. Please follow '
+                                          'safe practices and common sense. If you are unsure '
+                                          'about what\'s on the other end of an IPFS, don\'t '
+                                          'visit it!\n\n'
+                                          'Are you sure you want to continue?').format(url),
+                                        title=_('Warning: External Data'), checkbox=cb)
+
+            if cb_checked:
+                self.parent.config.set_key('show_ipfs_warning', False)
+            if goto:
+                webopen(url)
+        else:
+            webopen(url)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        idx = self.indexAt(event.pos())
+        if not idx.isValid():
+            return
+        selected = self.selected_in_column(self.Columns.IPFS)
+        multi_select = len(selected) > 1
+        ipfses = [self.model().itemFromIndex(item).text() for item in selected]
+        if not multi_select:
+            ipfs = ipfses[0]
+            if ipfs:
+                url = ipfs_explorer_URL(self.parent.config, 'ipfs', ipfs)
+                self.webopen_safe(url)
+
     def refresh_headers(self):
         headers = {
             self.Columns.NAME: _('Name'),
@@ -74,6 +116,7 @@ class AssetList(MyTreeView):
             self.Columns.IPFS: _('Asset Data'),
             self.Columns.REISSUABLE: _('Reissuable'),
             self.Columns.DIVISIONS: _('Divisions'),
+            self.Columns.OWNER: _('Owner'),
         }
         self.update_headers(headers)
 
@@ -89,110 +132,79 @@ class AssetList(MyTreeView):
         self.refresh_headers()
         set_asset = None
 
-        assets = {} # type: Dict[str, Tuple]
-        
+        assets = {}  # type: Dict[str, List[int, Optional[AssetMeta]]]
+
         for address in addr_list:
             c, u, x = self.wallet.get_addr_balance(address)
             balance = c + u + x
             for asset, balance in balance.assets.items():
                 if asset not in assets:
                     meta = self.wallet.get_asset_meta(asset)
+                    assets[asset] = [balance.value, meta]
+                else:
+                    assets[asset][0] += balance.value
 
+        for asset, data in assets.items():
 
-        for address in addr_list:
-            c, u, x = self.wallet.get_addr_balance(address)
+            balance = data[0]
+            meta = data[1]  # type: AssetMeta
 
             balance_text = self.parent.format_amount(balance, whitespaces=True)
+
+            ipfs_str = str(meta.ipfs_str) if meta else ''  # May be none
+            is_reis = str(meta.is_reissuable) if meta else ''
+            divs = str(meta.divisions) if meta else ''
+            ownr = str(meta.is_owner) if meta else ''
+
             # create item
-            if fx and fx.get_fiat_address_config():
-                rate = fx.exchange_rate()
-                fiat_balance = fx.value_str(balance, rate)
-            else:
-                fiat_balance = ''
-            labels = ['', address, label, balance_text, fiat_balance, "%d"%num]
-            address_item = [QStandardItem(e) for e in labels]
+            labels = [asset, balance_text, ipfs_str, is_reis, divs, ownr]
+            asset_item = [QStandardItem(e) for e in labels]
             # align text and set fonts
-            for i, item in enumerate(address_item):
+            for i, item in enumerate(asset_item):
                 item.setTextAlignment(Qt.AlignVCenter)
-                if i not in (self.Columns.TYPE, self.Columns.LABEL):
+                if i not in (self.Columns.NAME, self.Columns.IPFS):
                     item.setFont(QFont(MONOSPACE_FONT))
-            self.set_editability(address_item)
-            address_item[self.Columns.FIAT_BALANCE].setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            # setup column 0
-            if self.wallet.is_change(address):
-                address_item[self.Columns.TYPE].setText(_('change'))
-                address_item[self.Columns.TYPE].setBackground(ColorScheme.YELLOW.as_color(True))
-            else:
-                address_item[self.Columns.TYPE].setText(_('receiving'))
-                address_item[self.Columns.TYPE].setBackground(ColorScheme.GREEN.as_color(True))
-            address_item[self.Columns.LABEL].setData(address, self.ROLE_ADDRESS_STR)
-            address_path = self.wallet.get_address_index(address)
-            address_item[self.Columns.TYPE].setData(address_path, self.ROLE_SORT_ORDER)
-            address_path_str = self.wallet.get_address_path_str(address)
-            if address_path_str is not None:
-                address_item[self.Columns.TYPE].setToolTip(address_path_str)
-            address_item[self.Columns.FIAT_BALANCE].setData(balance, self.ROLE_SORT_ORDER)
-            # setup column 1
-            if self.wallet.is_frozen_address(address):
-                address_item[self.Columns.ADDRESS].setBackground(ColorScheme.BLUE.as_color(True))
-            if address in addresses_beyond_gap_limit:
-                address_item[self.Columns.ADDRESS].setBackground(ColorScheme.RED.as_color(True))
+            self.set_editability(asset_item)
+
             # add item
             count = self.std_model.rowCount()
-            self.std_model.insertRow(count, address_item)
-            address_idx = self.std_model.index(count, self.Columns.LABEL)
-            if address == current_asset:
-                set_asset = QPersistentModelIndex(address_idx)
+            self.std_model.insertRow(count, asset_item)
+
+        self.asset_meta = assets
         self.set_current_idx(set_asset)
         self.filter()
         self.proxy.setDynamicSortFilter(True)
 
     def create_menu(self, position):
-        from electrum.wallet import Multisig_Wallet
-        is_multisig = isinstance(self.wallet, Multisig_Wallet)
-        can_delete = self.wallet.can_delete_address()
-        selected = self.selected_in_column(self.Columns.ADDRESS)
+        selected = self.selected_in_column(self.Columns.NAME)
         if not selected:
             return
         multi_select = len(selected) > 1
-        addrs = [self.item_from_index(item).text() for item in selected]
+        assets = [self.model().itemFromIndex(item).text() for item in selected]
         menu = QMenu()
         if not multi_select:
             idx = self.indexAt(position)
             if not idx.isValid():
                 return
-            item = self.item_from_index(idx)
+            col = idx.column()
+            item = self.model().itemFromIndex(idx)
             if not item:
                 return
-            addr = addrs[0]
-            addr_column_title = self.std_model.horizontalHeaderItem(self.Columns.LABEL).text()
-            addr_idx = idx.sibling(idx.row(), self.Columns.LABEL)
-            self.add_copy_menu(menu, idx)
-            menu.addAction(_('Details'), lambda: self.parent.show_address(addr))
-            persistent = QPersistentModelIndex(addr_idx)
-            menu.addAction(_("Edit {}").format(addr_column_title), lambda p=persistent: self.edit(QModelIndex(p)))
-            #menu.addAction(_("Request payment"), lambda: self.parent.receive_at(addr))
-            if self.wallet.can_export():
-                menu.addAction(_("Private key"), lambda: self.parent.show_private_key(addr))
-            if not is_multisig and not self.wallet.is_watching_only():
-                menu.addAction(_("Sign/verify message"), lambda: self.parent.sign_verify_message(addr))
-                menu.addAction(_("Encrypt/decrypt message"), lambda: self.parent.encrypt_message(addr))
-            if can_delete:
-                menu.addAction(_("Remove from wallet"), lambda: self.parent.remove_address(addr))
-            addr_URL = block_explorer_URL(self.config, 'addr', addr)
-            if addr_URL:
-                menu.addAction(_("View on block explorer"), lambda: webopen(addr_URL))
+            asset = assets[0]
 
-            if not self.wallet.is_frozen_address(addr):
-                menu.addAction(_("Freeze"), lambda: self.parent.set_frozen_state_of_addresses([addr], True))
-            else:
-                menu.addAction(_("Unfreeze"), lambda: self.parent.set_frozen_state_of_addresses([addr], False))
+            column_title = self.model().horizontalHeaderItem(col).text()
+            copy_text = self.model().itemFromIndex(idx).text()
+            if col == self.Columns.BALANCE:
+                copy_text = copy_text.strip()
+            menu.addAction(_("Copy {}").format(column_title), lambda: self.place_text_on_clipboard(copy_text))
+            menu.addAction(_('Send {}').format(asset), lambda: ())
+            if asset in self.asset_meta and \
+                    self.asset_meta[asset][1].ipfs_str:
+                url = ipfs_explorer_URL(self.parent.config, 'ipfs', self.asset_meta[asset][1].ipfs_str)
+                menu.addAction(_('View IPFS'), lambda: self.webopen_safe(url))
+            menu.addAction(_('View History'), lambda: self.parent.show_asset(asset))
+            menu.addAction(_('Mark as spam'), lambda: self.parent.mark_asset_as_spam(asset))
 
-        coins = self.wallet.get_spendable_coins(addrs)
-        if coins:
-            menu.addAction(_("Spend from"), lambda: self.parent.utxo_list.set_spend_list(coins))
-
-        run_hook('receive_menu', menu, addrs, self.wallet)
         menu.exec_(self.viewport().mapToGlobal(position))
 
     def place_text_on_clipboard(self, text: str, *, title: str = None) -> None:

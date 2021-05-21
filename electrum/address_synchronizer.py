@@ -115,6 +115,12 @@ class AddressSynchronizer(Logger):
     def get_addresses(self):
         return sorted(self.db.get_history())
 
+    def get_asset_meta(self, asset):
+        return self.db.get_asset_meta(asset)
+
+    def get_assets(self):
+        return self.db.get_assets()
+
     def get_address_history(self, addr: str) -> Sequence[Tuple[str, int]]:
         """Returns the history for the address, in the format that would be returned by a server.
 
@@ -211,6 +217,10 @@ class AddressSynchronizer(Logger):
             self.set_up_to_date(False)
         if self.synchronizer:
             self.synchronizer.add(address)
+
+    def add_asset(self, asset):
+        if self.synchronizer:
+            self.synchronizer.add_asset(asset)
 
     def get_conflicting_transactions(self, tx_hash, tx: Transaction, include_self=False):
         """Returns a set of transaction hashes from the wallet history that are
@@ -325,6 +335,9 @@ class AddressSynchronizer(Logger):
                 self.db.add_prevout_by_scripthash(scripthash, prevout=TxOutpoint.from_str(ser), value=v)
                 addr = self.get_txout_address(txo)
                 if addr and self.is_mine(addr):
+                    for asset in v.assets:
+                        if asset not in self.get_assets():
+                            self.add_asset(asset)
                     self.db.add_txo_addr(tx_hash, addr, n, v, is_coinbase)
                     self._get_addr_balance_cache.pop(addr, None)  # invalidate cache
                     # give v to txi that spends me
@@ -384,7 +397,7 @@ class AddressSynchronizer(Logger):
             self.unverified_tx.pop(tx_hash, None)
             if tx:
                 for idx, txo in enumerate(tx.outputs()):
-                    scripthash = ravencoin.script_to_scripthash(txo.scriptpubkey.hex())
+                    scripthash = ravencoin.script_to_scripthash(txo.scriptpubkey)
                     prevout = TxOutpoint(bfh(tx_hash), idx)
                     self.db.remove_prevout_by_scripthash(scripthash, prevout=prevout, value=txo.value)
 
@@ -397,6 +410,9 @@ class AddressSynchronizer(Logger):
                 children.add(other_hash)
                 children |= self.get_depending_transactions(other_hash)
             return children
+
+    def recieve_asset_callback(self, asset: str, meta: AssetMeta):
+        self.db.add_asset_meta(asset, meta)
 
     def receive_tx_callback(self, tx_hash: str, tx: Transaction, tx_height: int) -> None:
         self.add_unverified_tx(tx_hash, tx_height)

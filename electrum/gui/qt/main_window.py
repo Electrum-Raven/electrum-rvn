@@ -2140,8 +2140,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
     def create_assets_tab(self):
         from .asset_list import AssetList
         self.asset_list = l = AssetList(self)
-        toolbar = l.create_toolbar(self.config)
-        return self.create_list_tab(l, toolbar)
+        return self.create_list_tab(l)
 
     def create_utxo_tab(self):
         from .utxo_list import UTXOList

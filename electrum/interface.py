@@ -58,7 +58,7 @@ from . import ravencoin
 from . import constants
 from .i18n import _
 from .logging import Logger
-from .transaction import Transaction
+from .transaction import Transaction, AssetMeta
 
 if TYPE_CHECKING:
     from .network import Network
