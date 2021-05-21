@@ -187,7 +187,7 @@ class Satoshis(object):
         elif isinstance(other, int):
             return self.value == other
         else:
-            raise TypeError('Satoshis or int required')
+            return super().__eq__(other)
 
     def __ne__(self, other):
         return not (self == other)
@@ -758,9 +758,8 @@ def format_satoshis(
 ) -> str:
     if x is None:
         return 'unknown'
-    # Don't deal with '!' for now because of assets
-    # if x == '!':
-    #    return 'max'
+    if x == '!':
+        return 'max'
     if precision is None:
         precision = decimal_point
     # format string

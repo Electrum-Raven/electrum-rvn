@@ -989,6 +989,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if not self.wallet:
             return
 
+        status_text = ''
         if self.network is None:
             text = _("Offline")
             icon = read_QIcon("status_disconnected.png")
@@ -1027,6 +1028,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                     icon = read_QIcon("status_connected%s.png" % fork_str)
                 else:
                     icon = read_QIcon("status_connected_proxy%s.png" % fork_str)
+                local_height = self.network.get_local_height()
+                if local_height < server_height - 100:
+                    status_text = "Syncing headers {}/{}".format(local_height, server_height)
         else:
             if self.network.proxy:
                 text = "{} ({})".format(_("Not connected"), _("proxy enabled"))
@@ -1037,6 +1041,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if self.tray:
             self.tray.setToolTip("%s (%s)" % (text, self.wallet.basename()))
         self.balance_label.setText(text)
+        self.status_label.setText(status_text)
         if self.status_button:
             self.status_button.setIcon(icon)
 
@@ -2339,6 +2344,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.balance_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.balance_label.setStyleSheet("""QLabel { padding: 0 }""")
         sb.addWidget(self.balance_label)
+
+        self.status_label = QLabel("")
+        self.status_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.status_label.setStyleSheet("""QLabel { padding: 0 }""")
+        sb.addPermanentWidget(self.status_label)
 
         self.search_box = QLineEdit()
         self.search_box.textChanged.connect(self.do_search)
