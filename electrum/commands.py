@@ -1235,7 +1235,7 @@ class Commands:
 
     @command('n')
     def getassetdata(self, name):
-        return self.network.run_from_another_thread(self.network.getmeta_for_asset(name))
+        return self.network.run_from_another_thread(self.network.get_meta_for_asset(name))
 
     @command('n')
     def getserverpeers(self):
