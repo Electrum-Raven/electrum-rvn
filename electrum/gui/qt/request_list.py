@@ -140,6 +140,7 @@ class RequestList(MyTreeView):
         status_item.setText(status_str)
         status_item.setIcon(read_QIcon(pr_icons.get(status)))
 
+    # TODO: Implement for assets
     def update(self):
         # not calling maybe_defer_update() as it interferes with conditional-visibility
         self.parent.update_receive_address_styling()
@@ -152,7 +153,7 @@ class RequestList(MyTreeView):
             status_str = req.get_status_str(status)
             request_type = req.type
             timestamp = req.time
-            amount = req.get_amount_sat()
+            amount = req.get_amount_sat().rvn_value
             message = req.message
             date = format_time(timestamp)
             amount_str = self.parent.format_amount(amount) if amount else ""

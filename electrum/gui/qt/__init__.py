@@ -142,7 +142,7 @@ class ElectrumGui(Logger):
         self.tray.show()
 
     def set_dark_theme_if_needed(self):
-        use_dark_theme = self.config.get('qt_gui_color_theme', 'default') == 'dark'
+        use_dark_theme = self.config.get('qt_gui_color_theme', 'dark') == 'dark'
         if use_dark_theme:
             try:
                 import qdarkstyle

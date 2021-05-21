@@ -1393,12 +1393,12 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
             #       forever. see #5433
             # note: Actually it might be the case that not all UTXOs from the wallet are
             #       being spent if the user manually selected UTXOs.
-            sendable = sum(map(lambda c: c.value_sats(), coins))
-            outputs[i_max].value = 0
+            sendable = sum(map(lambda c: c.value_sats(), coins), RavenValue())
+            outputs[i_max].value = RavenValue(0)
             tx = PartialTransaction.from_io(list(coins), list(outputs))
             fee = fee_estimator(tx.estimated_size())
-            amount = sendable - tx.output_value() - fee
-            if amount < 0:
+            amount = sendable - tx.output_value() - RavenValue(fee)
+            if amount.rvn_value < 0:
                 raise NotEnoughFunds()
             outputs[i_max].value = amount
             tx = PartialTransaction.from_io(list(coins), list(outputs))
@@ -2068,6 +2068,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
     def delete_address(self, address: str) -> None:
         raise Exception("this wallet cannot delete addresses")
 
+    # TODO: Implement for assets
     def get_onchain_request_status(self, r):
         address = r.get_address()
         amount = r.get_amount_sat()
@@ -2082,10 +2083,10 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 continue
             conf = tx_height.conf
             l.append((conf, v))
-        vsum = 0
+        vsum = RavenValue()
         for conf, v in reversed(sorted(l)):
             vsum += v
-            if vsum >= amount:
+            if vsum.rvn_value >= amount.rvn_value:
                 return True, conf
         return False, None
 

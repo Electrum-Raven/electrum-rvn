@@ -351,6 +351,8 @@ def main():
             sys.exit(1)
 
     config = SimpleConfig(config_options)
+    # Segwit is not currently supported
+    config.set_key('nosegwit', True)
 
     # set language as early as possible
     # Note: we are already too late for strings that are declared in the global scope

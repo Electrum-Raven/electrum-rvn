@@ -181,8 +181,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.gui_thread = gui_object.gui_thread
         assert wallet, "no wallet"
         self.wallet = wallet
-        if wallet.has_lightning():
-            self.wallet.config.set_key('show_channels_tab', True)
+        # if wallet.has_lightning():
+        #    self.wallet.config.set_key('show_channels_tab', True)
 
         self.asset_blacklist = self.wallet.config.get('asset_blacklist', [])
         self.asset_whitelist = self.wallet.config.get('asset_whitelist', [])
@@ -223,7 +223,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.utxo_tab = self.create_utxo_tab()
         self.console_tab = self.create_console_tab()
         self.contacts_tab = self.create_contacts_tab()
-        self.channels_tab = self.create_channels_tab()
+        # self.channels_tab = self.create_channels_tab()
         tabs.addTab(self.create_history_tab(), read_QIcon("tab_history.png"), _('History'))
         tabs.addTab(self.assets_tab, read_QIcon('tab_assets.png'), _('Assets'))
         tabs.addTab(self.send_tab, read_QIcon("tab_send.png"), _('Send'))
@@ -238,7 +238,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                 tabs.addTab(tab, icon, description.replace("&", ""))
 
         add_optional_tab(tabs, self.addresses_tab, read_QIcon("tab_addresses.png"), _("&Addresses"), "addresses")
-        add_optional_tab(tabs, self.channels_tab, read_QIcon("lightning.png"), _("Channels"), "channels")
+        # add_optional_tab(tabs, self.channels_tab, read_QIcon("lightning.png"), _("Channels"), "channels")
         add_optional_tab(tabs, self.utxo_tab, read_QIcon("tab_coins.png"), _("Co&ins"), "utxo")
         add_optional_tab(tabs, self.contacts_tab, read_QIcon("tab_contacts.png"), _("Con&tacts"), "contacts")
         add_optional_tab(tabs, self.console_tab, read_QIcon("tab_console.png"), _("Con&sole"), "console")
@@ -451,17 +451,17 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.on_fx_quotes()
         elif event == 'on_history':
             self.on_fx_history()
-        elif event == 'gossip_db_loaded':
-            self.channels_list.gossip_db_loaded.emit(*args)
-        elif event == 'channels_updated':
-            wallet = args[0]
-            if wallet == self.wallet:
-                self.channels_list.update_rows.emit(*args)
-        elif event == 'channel':
-            wallet = args[0]
-            if wallet == self.wallet:
-                self.channels_list.update_single_row.emit(*args)
-                self.update_status()
+        # elif event == 'gossip_db_loaded':
+        #    self.channels_list.gossip_db_loaded.emit(*args)
+        # elif event == 'channels_updated':
+        #    wallet = args[0]
+        #    if wallet == self.wallet:
+        #        self.channels_list.update_rows.emit(*args)
+        # elif event == 'channel':
+        #    wallet = args[0]
+        #    if wallet == self.wallet:
+        #        self.channels_list.update_single_row.emit(*args)
+        #        self.update_status()
         elif event == 'request_status':
             self.on_request_status(*args)
         elif event == 'invoice_status':
@@ -527,7 +527,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.update_console()
         self.clear_receive_tab()
         self.request_list.update()
-        self.channels_list.update()
+        # self.channels_list.update()
         self.tabs.show()
         self.init_geometry()
         if self.config.get('hide_gui') and self.gui_object.tray.isVisible():
@@ -752,7 +752,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         view_menu = menubar.addMenu(_("&View"))
         add_toggle_action(view_menu, self.addresses_tab)
         add_toggle_action(view_menu, self.utxo_tab)
-        add_toggle_action(view_menu, self.channels_tab)
+        # add_toggle_action(view_menu, self.channels_tab)
         add_toggle_action(view_menu, self.contacts_tab)
         add_toggle_action(view_menu, self.console_tab)
 
@@ -1062,13 +1062,13 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.utxo_list.update()
         self.contact_list.update()
         self.invoice_list.update()
-        self.channels_list.update_rows.emit(wallet)
+        # self.channels_list.update_rows.emit(wallet)
         self.update_completions()
 
-    def create_channels_tab(self):
-        self.channels_list = ChannelsList(self)
-        t = self.channels_list.get_toolbar()
-        return self.create_list_tab(self.channels_list, t)
+    # def create_channels_tab(self):
+    #     self.channels_list = ChannelsList(self)
+    #     t = self.channels_list.get_toolbar()
+    #     return self.create_list_tab(self.channels_list, t)
 
     def create_history_tab(self):
         self.history_model = HistoryModel(self)
@@ -1533,8 +1533,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.max_button.setChecked(True)
         amount = tx.output_value()
         __, x_fee_amount = run_hook('get_tx_extra_fee', self.wallet, tx) or (None, 0)
-        amount_after_all_fees = amount - x_fee_amount
-        self.amount_e.setAmount(amount_after_all_fees)
+        amount_after_all_fees = amount - RavenValue(x_fee_amount)
+        self.amount_e.setAmount(amount_after_all_fees.rvn_value.value)
         # show tooltip explaining max amount
         mining_fee = tx.get_fee()
         mining_fee_str = self.format_amount_and_units(mining_fee)
@@ -1762,11 +1762,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             )
         return text
 
+    # TODO: Currently only for ravencoin
     def get_frozen_balance_str(self) -> Optional[str]:
-        frozen_bal = sum(self.wallet.get_frozen_balance())
+        frozen_bal = sum(self.wallet.get_frozen_balance(), RavenValue())
         if not frozen_bal:
             return None
-        return self.format_amount_and_units(frozen_bal)
+        return self.format_amount_and_units(frozen_bal.rvn_value)
 
     def pay_onchain_dialog(
             self, inputs: Sequence[PartialTxInput],
@@ -2139,7 +2140,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.address_list = l = AddressList(self)
         toolbar = l.create_toolbar(self.config)
         tab = self.create_list_tab(l, toolbar)
-        toolbar_shown = bool(self.config.get('show_toolbar_addresses', False))
+        toolbar_shown = bool(self.config.get('show_toolbar_addresses', True))
         l.show_toolbar(toolbar_shown)
         return tab
 

@@ -420,6 +420,9 @@ class BaseWizard(Logger):
             default_choice_idx = 0
             choices = [
                 ('standard',   'legacy multisig (p2sh)',            normalize_bip32_derivation("m/45'/0")),
+
+                # Ravencoin does not current support segwit
+
                 # ('p2wsh-p2sh', 'p2sh-segwit multisig (p2wsh-p2sh)', purpose48_derivation(0, xtype='p2wsh-p2sh')),
                 # ('p2wsh',      'native segwit multisig (p2wsh)',    purpose48_derivation(0, xtype='p2wsh')),
             ]

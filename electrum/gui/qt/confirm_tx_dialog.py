@@ -31,7 +31,7 @@ from PyQt5.QtWidgets import  QVBoxLayout, QLabel, QGridLayout, QPushButton, QLin
 from electrum.i18n import _
 from electrum.util import NotEnoughFunds, NoDynamicFeeEstimates
 from electrum.plugin import run_hook
-from electrum.transaction import Transaction, PartialTransaction
+from electrum.transaction import Transaction, PartialTransaction, RavenValue
 from electrum.simple_config import FEERATE_WARNING_HIGH_FEE, FEE_RATIO_HIGH_WARNING
 from electrum.wallet import InternalAddressCorruption
 
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 class TxEditor:
 
     def __init__(self, *, window: 'ElectrumWindow', make_tx,
-                 output_value: Union[int, str] = None, is_sweep: bool):
+                 output_value: Union[RavenValue, str] = None, is_sweep: bool):
         self.main_window = window
         self.make_tx = make_tx
         self.output_value = output_value
@@ -213,17 +213,18 @@ class ConfirmTxDialog(TxEditor, WindowModalDialog):
         self.pw.setEnabled(enable)
         self.send_button.setEnabled(enable)
 
+    # TODO: Currently only for RVN
     def _update_amount_label(self):
         tx = self.tx
         if self.output_value == '!':
             if tx:
                 amount = tx.output_value()
-                amount_str = self.main_window.format_amount_and_units(amount)
+                amount_str = self.main_window.format_amount_and_units(amount.rvn_value)
             else:
                 amount_str = "max"
         else:
             amount = self.output_value
-            amount_str = self.main_window.format_amount_and_units(amount)
+            amount_str = self.main_window.format_amount_and_units(amount.rvn_value)
         self.amount_label.setText(amount_str)
 
     def update(self):

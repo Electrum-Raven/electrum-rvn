@@ -213,11 +213,11 @@ class TxOutput:
         return TYPE_SCRIPT, self.scriptpubkey.hex(), self.value
 
     @classmethod
-    def from_legacy_tuple(cls, _type: int, addr: str, val: RavenValue) -> Union['TxOutput', 'PartialTxOutput']:
+    def from_legacy_tuple(cls, _type: int, addr: str, val: Dict) -> Union['TxOutput', 'PartialTxOutput']:
         if _type == TYPE_ADDRESS:
-            return cls.from_address_and_value(addr, val)
+            return cls.from_address_and_value(addr, RavenValue.from_json(val))
         if _type == TYPE_SCRIPT:
-            return cls(scriptpubkey=bfh(addr), value=val)
+            return cls(scriptpubkey=bfh(addr), value=RavenValue.from_json(val))
         raise Exception(f"unexptected legacy address type: {_type}")
 
     @property
@@ -309,7 +309,7 @@ class TxInput:
         """
         return self._is_coinbase_output
 
-    def value_sats(self) -> Optional[int]:
+    def value_sats(self) -> Optional[RavenValue]:
         return None
 
     def to_json(self):
@@ -1963,10 +1963,10 @@ class PartialTransaction(Transaction):
         input_values = [txin.value_sats() for txin in self.inputs()]
         if any([val is None for val in input_values]):
             raise MissingTxInputAmount()
-        return sum(input_values)
+        return sum(input_values, RavenValue())
 
     def output_value(self) -> RavenValue:
-        return sum(o.value for o in self.outputs())
+        return sum([o.value for o in self.outputs()], RavenValue())
 
     def get_fee(self) -> Optional[int]:
         try:
