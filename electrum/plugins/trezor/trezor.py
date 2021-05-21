@@ -115,7 +115,7 @@ class TrezorPlugin(HW_PluginBase):
 
     firmware_URL = 'https://wallet.trezor.io'
     libraries_URL = 'https://pypi.org/project/trezor/'
-    minimum_firmware = (1, 5, 2)
+    minimum_firmware = (1, 6, 0)
     keystore_class = TrezorKeyStore
     minimum_library = (0, 12, 0)
     maximum_library = (0, 13)
