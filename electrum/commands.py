@@ -1239,8 +1239,7 @@ class Commands:
 
     @command('n')
     def getserverpeers(self):
-        return self.network.run_from_another_thread(
-            self.network.interface.session.send_request('server.peers.subscribe'))
+        return self.network.interface.session.send_request('server.peers.subscribe')
 
 
 def eval_bool(x: str) -> bool:
