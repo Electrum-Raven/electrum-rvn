@@ -854,6 +854,8 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 for txout in invoice.outputs:
                     self._invoices_from_scriptpubkey_map[txout.scriptpubkey].add(invoice_key)
 
+
+    # TODO: Currently only for RVN
     def _is_onchain_invoice_paid(self, invoice: Invoice, conf: int) -> Tuple[bool, Sequence[str]]:
         """Returns whether on-chain invoice is satisfied, and list of relevant TXIDs."""
         assert invoice.type == PR_TYPE_ONCHAIN
@@ -864,9 +866,9 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         relevant_txs = []
         with self.transaction_lock:
             for invoice_scriptpubkey, invoice_amt in invoice_amounts.items():
-                scripthash = ravencoin.script_to_scripthash(invoice_scriptpubkey.hex())
+                scripthash = ravencoin.script_to_scripthash(invoice_scriptpubkey)
                 prevouts_and_values = self.db.get_prevouts_by_scripthash(scripthash)
-                total_received = 0
+                total_received = RavenValue()
                 for prevout, v in prevouts_and_values:
                     tx_height = self.get_tx_height(prevout.txid.hex())
                     if tx_height.height > 0 and tx_height.height <= invoice.height:
@@ -879,7 +881,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 # note: "at least one TXO" check is needed for zero amount invoice (e.g. OP_RETURN)
                 if len(prevouts_and_values) == 0:
                     return False, []
-                if total_received < invoice_amt:
+                if total_received.rvn_value < invoice_amt:
                     return False, []
         return True, relevant_txs
 
@@ -2561,12 +2563,12 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
 
     def get_tx_fee_warning(
             self, *,
-            invoice_amt: int,
+            invoice_amt: RavenValue,
             tx_size: int,
             fee: int) -> Optional[Tuple[bool, str, str]]:
 
         feerate = Decimal(fee) / tx_size  # sat/byte
-        fee_ratio = Decimal(fee) / invoice_amt if invoice_amt else 1
+        fee_ratio = Decimal(fee) / invoice_amt.rvn_value.value if invoice_amt else 1
         long_warning = None
         short_warning = None
         allow_send = True

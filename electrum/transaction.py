@@ -187,7 +187,7 @@ class TxOutput:
         self.value = value  # str when the rvn output is set to max: '!'
 
     @classmethod
-    def from_address_and_value(cls, address: str, value: RavenValue) -> Union['TxOutput', 'PartialTxOutput']:
+    def from_address_and_value(cls, address: str, value: Union[RavenValue, str]) -> Union['TxOutput', 'PartialTxOutput']:
         return cls(scriptpubkey=bfh(ravencoin.address_to_script(address)),
                    value=value)
 
@@ -213,11 +213,17 @@ class TxOutput:
         return TYPE_SCRIPT, self.scriptpubkey.hex(), self.value
 
     @classmethod
-    def from_legacy_tuple(cls, _type: int, addr: str, val: Dict) -> Union['TxOutput', 'PartialTxOutput']:
+    def from_legacy_tuple(cls, _type: int, addr: str, val) -> Union['TxOutput', 'PartialTxOutput']:
+
+        if isinstance(val, Dict):
+            val = RavenValue.from_json(val)
+        if isinstance(val, int):
+            val = RavenValue(val)
+
         if _type == TYPE_ADDRESS:
-            return cls.from_address_and_value(addr, RavenValue.from_json(val))
+            return cls.from_address_and_value(addr, val)
         if _type == TYPE_SCRIPT:
-            return cls(scriptpubkey=bfh(addr), value=RavenValue.from_json(val))
+            return cls(scriptpubkey=bfh(addr), value=val)
         raise Exception(f"unexptected legacy address type: {_type}")
 
     @property

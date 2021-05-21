@@ -1065,7 +1065,7 @@ class WalletDB(JsonDB):
             self._prevouts_by_scripthash.pop(scripthash)
 
     @locked
-    def get_prevouts_by_scripthash(self, scripthash: str) -> Set[Tuple[TxOutpoint, int]]:
+    def get_prevouts_by_scripthash(self, scripthash: str) -> Set[Tuple[TxOutpoint, RavenValue]]:
         assert isinstance(scripthash, str)
         prevouts_and_values = self._prevouts_by_scripthash.get(scripthash, set())
         return {(TxOutpoint.from_str(prevout), value) for prevout, value in prevouts_and_values}

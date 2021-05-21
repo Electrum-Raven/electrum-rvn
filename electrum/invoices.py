@@ -128,6 +128,8 @@ class OnchainInvoice(Invoice):
         return self.outputs[0].address
 
     def get_amount_sat(self) -> Union[RavenValue, str]:
+        if self.amount_sat == '!':
+            return '!'
         return RavenValue(Satoshis(self.amount_sat)) or RavenValue()
 
     @amount_sat.validator
