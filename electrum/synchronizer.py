@@ -55,7 +55,6 @@ def history_status(h):
 
 
 def asset_status(asset_data: Union[Dict, AssetMeta]):
-    print(asset_data)
     if asset_data:
         if isinstance(asset_data, Dict):
             div_amt = asset_data['divisions']

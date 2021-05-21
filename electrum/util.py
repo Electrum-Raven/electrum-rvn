@@ -944,7 +944,7 @@ def block_explorer(config: 'SimpleConfig') -> Optional[str]:
     """
     if config.get('block_explorer_custom') is not None:
         return None
-    default_ = 'Blockstream.info'
+    default_ = 'rvn.cryptoscope.io'
     be_key = config.get('block_explorer', default_)
     be_tuple = block_explorer_info().get(be_key)
     if be_tuple is None:

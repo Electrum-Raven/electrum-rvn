@@ -1091,6 +1091,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.config.set_key('asset_blacklist', self.asset_blacklist, True)
         self.asset_list.update()
         self.history_model.refresh('Marked asset as spam')
+        self.history_list.update()
 
     def show_channel(self, channel_id):
         from . import channel_details
@@ -3284,7 +3285,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.config.set_key('asset_whitelist', self.asset_whitelist, True)
         if d.save_whitelist or d.save_blacklist:
             self.asset_list.update()
-            self.history_model.refresh('Changed asset white or black list')
+            self.history_model.refresh('Changed asset white or black list', True)
         if d.need_restart:
             self.show_warning(_('Please restart Electrum to activate the new GUI settings'), title=_('Success'))
 

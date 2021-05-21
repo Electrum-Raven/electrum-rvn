@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 import os
-import sys
+import re
 import time
 import datetime
 from datetime import date
@@ -132,6 +132,8 @@ class HistoryNodeData(NamedTuple):
     fiat_gain: Optional[Fiat]
     payment_hash: str
     height: int
+    channel_id: Optional[str]
+    preimage: Optional[str]
 
 
 class HistoryNode(CustomNode):
@@ -321,11 +323,11 @@ class HistoryModel(CustomModel, Logger):
                     parent._data['confirmations'] = tx_item['confirmations']
 
     @profiler
-    def refresh(self, reason: str):
+    def refresh(self, reason: str, force=False):
         self.logger.info(f"refreshing... reason: {reason}")
         assert self.parent.gui_thread == threading.current_thread(), 'must be called from GUI thread'
         assert self.view, 'view not set'
-        if self.view.maybe_defer_update():
+        if not force and self.view.maybe_defer_update():
             return
         selected = self.view.selectionModel().currentIndex()
         selected_row = None
@@ -339,7 +341,7 @@ class HistoryModel(CustomModel, Logger):
             self.parent.fx,
             onchain_domain=self.get_domain(),
             include_lightning=self.should_include_lightning_payments())
-        if transactions == self.transactions:
+        if not force and transactions == self.transactions:
             return
         old_length = self._root.childCount()
         if old_length != 0:
@@ -348,6 +350,24 @@ class HistoryModel(CustomModel, Logger):
             self._root = HistoryNode(self, None)
             self.endRemoveRows()
         parents = {}
+
+        def should_show(asset):
+            if not asset:
+                return True
+            should_show = True
+            if not self.parent.config.get('show_spam_assets', False):
+                for regex in self.parent.asset_blacklist:
+                    if re.search(regex, asset):
+                        should_show = False
+                        break
+
+                for regex in self.parent.asset_whitelist:
+                    if re.search(regex, asset):
+                        should_show = True
+                        break
+
+            return should_show
+
         for tx_item in transactions.values():
 
             # Create separate rows for assets
@@ -365,6 +385,8 @@ class HistoryModel(CustomModel, Logger):
             payment_hash = tx_item.get('payment_hash')
             height = tx_item.get('height')
             type = tx_item.get('type')
+            channel_id = tx_item.get('channel_id')
+            preimage = tx_item.get('preimage')
 
             if value.rvn_value != 0:
                 asset_name = None
@@ -386,11 +408,17 @@ class HistoryModel(CustomModel, Logger):
                     fiat_gain=fiat_gain,
                     payment_hash=payment_hash,
                     height=height,
-                    type=type
+                    type=type,
+                    channel_id=channel_id,
+                    preimage=preimage
                 )
                 self.add_history_node(node_data, parents, tx_item)
 
             for asset in value.assets:
+
+                if not should_show(asset):
+                    continue
+
                 asset_name = asset
                 amount = value.assets[asset]
                 balance = tx_item['balance'].assets[asset]
@@ -410,7 +438,9 @@ class HistoryModel(CustomModel, Logger):
                     fiat_gain=fiat_gain,
                     payment_hash=payment_hash,
                     height=height,
-                    type=type
+                    type=type,
+                    channel_id=channel_id,
+                    preimage=preimage
                 )
                 self.add_history_node(node_data, parents, tx_item)
 
@@ -805,22 +835,22 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         if not idx.isValid():
             # can happen e.g. before list is populated for the first time
             return
-        tx_item = idx.internalPointer().get_data()
-        if tx_item.get('lightning') and tx_item['type'] == 'payment':
+        tx_item = idx.internalPointer().get_data()  # type: HistoryNodeData
+        if tx_item.lightning and tx_item.type == 'payment':
             menu = QMenu()
             menu.addAction(_("View Payment"), lambda: self.parent.show_lightning_transaction(tx_item))
             cc = self.add_copy_menu(menu, idx)
             cc.addAction(_("Payment Hash"),
-                         lambda: self.place_text_on_clipboard(tx_item['payment_hash'], title="Payment Hash"))
-            cc.addAction(_("Preimage"), lambda: self.place_text_on_clipboard(tx_item['preimage'], title="Preimage"))
-            key = tx_item['payment_hash']
+                         lambda: self.place_text_on_clipboard(tx_item.payment_hash, title="Payment Hash"))
+            cc.addAction(_("Preimage"), lambda: self.place_text_on_clipboard(tx_item.preimage, title="Preimage"))
+            key = tx_item.payment_hash
             log = self.wallet.lnworker.logs.get(key)
             if log:
                 menu.addAction(_("View log"), lambda: self.parent.invoice_list.show_log(key, log))
             menu.exec_(self.viewport().mapToGlobal(position))
             return
-        tx_hash = tx_item['txid']
-        if tx_item.get('lightning'):
+        tx_hash = tx_item.txid
+        if tx_item.lightning:
             tx = self.wallet.lnworker.lnwatcher.db.get_transaction(tx_hash)
         else:
             tx = self.wallet.db.get_transaction(tx_hash)
@@ -841,7 +871,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
             persistent = QPersistentModelIndex(org_idx.sibling(org_idx.row(), c))
             menu.addAction(_("Edit {}").format(label), lambda p=persistent: self.edit(QModelIndex(p)))
         menu.addAction(_("View Transaction"), lambda: self.show_transaction(tx_item, tx))
-        channel_id = tx_item.get('channel_id')
+        channel_id = tx_item.channel_id
         if channel_id:
             menu.addAction(_("View Channel"), lambda: self.parent.show_channel(bytes.fromhex(channel_id)))
         if is_unconfirmed and tx:

@@ -25,6 +25,7 @@
 
 from enum import IntEnum
 from typing import List, Dict
+import re
 
 from PyQt5.QtCore import Qt, QPersistentModelIndex, QModelIndex
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QMouseEvent
@@ -100,14 +101,13 @@ class AssetList(MyTreeView):
         idx = self.indexAt(event.pos())
         if not idx.isValid():
             return
-        selected = self.selected_in_column(self.Columns.IPFS)
-        multi_select = len(selected) > 1
-        ipfses = [self.model().itemFromIndex(item).text() for item in selected]
-        if not multi_select:
-            ipfs = ipfses[0]
-            if ipfs:
-                url = ipfs_explorer_URL(self.parent.config, 'ipfs', ipfs)
-                self.webopen_safe(url)
+
+        # Get the IPFS from 3rd column
+        hm_idx = self.model().mapToSource(self.model().index(idx.row(), 2))
+        data = self.std_model.data(hm_idx)
+        if data[:2] == 'Qm':  # If it starts with Qm, it's an IPFS
+            url = ipfs_explorer_URL(self.parent.config, 'ipfs', data)
+            self.webopen_safe(url)
 
     def refresh_headers(self):
         headers = {
@@ -137,7 +137,26 @@ class AssetList(MyTreeView):
         for address in addr_list:
             c, u, x = self.wallet.get_addr_balance(address)
             balance = c + u + x
+
+            # Don't display assets we no longer have
+            if len(balance.assets) == 0:
+                continue
+
             for asset, balance in balance.assets.items():
+                # Don't show hidden assets
+                if not self.parent.config.get('show_spam_assets', False):
+                    should_continue = False
+                    for regex in self.parent.asset_blacklist:
+                        if re.search(regex, asset):
+                            should_continue = True
+                            break
+                    for regex in self.parent.asset_whitelist:
+                        if re.search(regex, asset):
+                            should_continue = False
+                            break
+                    if should_continue:
+                        continue
+
                 if asset not in assets:
                     meta = self.wallet.get_asset_meta(asset)
                     assets[asset] = [balance.value, meta]
@@ -175,35 +194,42 @@ class AssetList(MyTreeView):
         self.filter()
         self.proxy.setDynamicSortFilter(True)
 
-    def create_menu(self, position):
-        selected = self.selected_in_column(self.Columns.NAME)
-        if not selected:
-            return
-        multi_select = len(selected) > 1
-        assets = [self.model().itemFromIndex(item).text() for item in selected]
-        menu = QMenu()
-        if not multi_select:
-            idx = self.indexAt(position)
-            if not idx.isValid():
-                return
-            col = idx.column()
-            item = self.model().itemFromIndex(idx)
-            if not item:
-                return
-            asset = assets[0]
+    def add_copy_menu(self, menu, idx):
+        cc = menu.addMenu(_("Copy"))
+        for column in self.Columns:
+            if self.isColumnHidden(column):
+                continue
+            column_title = self.model().headerData(column, Qt.Horizontal)
+            hm_idx = self.model().mapToSource(self.model().index(idx.row(), column))
+            column_data = self.std_model.data(hm_idx)
+            cc.addAction(
+               column_title,
+               lambda text=column_data, title=column_title:
+               self.place_text_on_clipboard(text, title=title))
+        return cc
 
-            column_title = self.model().horizontalHeaderItem(col).text()
-            copy_text = self.model().itemFromIndex(idx).text()
-            if col == self.Columns.BALANCE:
-                copy_text = copy_text.strip()
-            menu.addAction(_("Copy {}").format(column_title), lambda: self.place_text_on_clipboard(copy_text))
-            menu.addAction(_('Send {}').format(asset), lambda: ())
-            if asset in self.asset_meta and \
-                    self.asset_meta[asset][1].ipfs_str:
-                url = ipfs_explorer_URL(self.parent.config, 'ipfs', self.asset_meta[asset][1].ipfs_str)
-                menu.addAction(_('View IPFS'), lambda: self.webopen_safe(url))
-            menu.addAction(_('View History'), lambda: self.parent.show_asset(asset))
-            menu.addAction(_('Mark as spam'), lambda: self.parent.mark_asset_as_spam(asset))
+    def create_menu(self, position):
+        org_idx: QModelIndex = self.indexAt(position)
+
+        hm_idx = self.model().mapToSource(self.model().index(org_idx.row(), 0))
+        if not hm_idx.isValid():
+            return
+        asset = self.std_model.data(hm_idx)
+
+        hm_idx = self.model().mapToSource(self.model().index(org_idx.row(), 2))
+        if not hm_idx.isValid():
+            return
+        ipfs = self.std_model.data(hm_idx)
+
+        menu = QMenu()
+        self.add_copy_menu(menu, org_idx)
+
+        menu.addAction(_('Send {}').format(asset), lambda: ())
+        if ipfs[:2] == 'Qm':
+            url = ipfs_explorer_URL(self.parent.config, 'ipfs', ipfs)
+            menu.addAction(_('View IPFS'), lambda: self.webopen_safe(url))
+        menu.addAction(_('View History'), lambda: self.parent.show_asset(asset))
+        menu.addAction(_('Mark as spam'), lambda: self.parent.hide_asset(asset))
 
         menu.exec_(self.viewport().mapToGlobal(position))
 

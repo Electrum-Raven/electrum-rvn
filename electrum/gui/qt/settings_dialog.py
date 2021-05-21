@@ -570,9 +570,9 @@ class SettingsDialog(WindowModalDialog):
         show_spam_cb.setChecked(self.config.get('show_spam_assets', False))
 
         def on_set_show_spam(v):
-            self.config.set_key('show_spam_assets', v == Qt.Checked, save=True)
-            self.asset_list.update()
-            self.history_model.refresh('Toggled show spam assets')
+            self.window.config.set_key('show_spam_assets', v == Qt.Checked, save=True)
+            self.window.asset_list.update()
+            self.window.history_model.refresh('Toggled show spam assets', True)
 
         show_spam_cb.stateChanged.connect(on_set_show_spam)
         asset_widgets.append((show_spam_cb, None))
