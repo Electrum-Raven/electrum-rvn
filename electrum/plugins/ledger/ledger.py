@@ -343,6 +343,7 @@ class ParsingTracker(AbstractTracker):
                       'This transaction from failing due to your ledger locking.\n'
                       'These settings can be found in:\n'
                       'Settings > Security > Screen Saver > Off\n'
+                      'Settings > Security > Pin Lock > Off\n'
                       'Once this transaction is complete and sent, your RVN will\n'
                       'be consolidated and transaction parsing times will be\n'
                       'unnoticeable in the future.\n\n')
@@ -367,7 +368,7 @@ class ParsingTracker(AbstractTracker):
 
         line += _('ETA: {}').format(eta)
         self.last_ETA = eta
-
+        return line
 
 # I am not sure if python booleans are atomic
 class AtomicBoolean:
@@ -646,9 +647,10 @@ class Ledger_KeyStore(Hardware_KeyStore):
                     self.give_error(_(
                         "P2SH / regular input mixed in same transaction not supported"))  # should never happen
 
+        # TODO: RVN Only
         txOutput = var_int(len(tx.outputs()))
         for o in tx.outputs():
-            txOutput += int_to_hex(o.value, 8)
+            txOutput += int_to_hex(o.value.rvn_value.value, 8)
             script = o.scriptpubkey.hex()
             txOutput += var_int(len(script) // 2)
             txOutput += script

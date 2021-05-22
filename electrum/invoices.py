@@ -114,7 +114,7 @@ class Invoice(StoredObject):
 @attr.s
 class OnchainInvoice(Invoice):
     message = attr.ib(type=str, kw_only=True)
-    amount_sat = attr.ib(kw_only=True)  # type: Union[int, str]  # in satoshis. can be '!'
+    amount_sat = attr.ib(kw_only=True)  # type: Union[RavenValue, str]  # in satoshis. can be '!'
     exp = attr.ib(type=int, kw_only=True, validator=attr.validators.instance_of(int))
     time = attr.ib(type=int, kw_only=True, validator=attr.validators.instance_of(int))
     id = attr.ib(type=str, kw_only=True)
@@ -130,12 +130,16 @@ class OnchainInvoice(Invoice):
     def get_amount_sat(self) -> Union[RavenValue, str]:
         if self.amount_sat == '!':
             return '!'
-        return RavenValue(Satoshis(self.amount_sat)) or RavenValue()
+        return self.amount_sat or RavenValue()
 
     @amount_sat.validator
     def _validate_amount(self, attribute, value):
         if isinstance(value, int):
-            if not (0 <= value <= TOTAL_COIN_SUPPLY_LIMIT_IN_BTC * COIN):
+            self.amount_sat = value = RavenValue(value)
+        elif isinstance(value, Dict):
+            self.amount_sat = value = RavenValue.from_json(value)
+        if isinstance(value, RavenValue):
+            if not (0 <= value.rvn_value <= TOTAL_COIN_SUPPLY_LIMIT_IN_BTC * COIN):
                 raise InvoiceError(f"amount is out-of-bounds: {value!r} sat")
         elif isinstance(value, str):
             if value != "!":

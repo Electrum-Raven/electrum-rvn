@@ -169,6 +169,7 @@ class Satoshis(object):
     __slots__ = ('value',)
 
     def __new__(cls, value):
+        assert isinstance(value, int)
         self = super(Satoshis, cls).__new__(cls)
         # note: 'value' sometimes has msat precision
         self.value = value

@@ -676,6 +676,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
             is_lightning_funding_tx=is_lightning_funding_tx,
         )
 
+    # TODO: RVN only
     def get_spendable_coins(self, domain, *, nonlocal_only=False) -> Sequence[PartialTxInput]:
         confirmed_only = self.config.get('confirmed_only', False)
         with self._freeze_lock:
@@ -685,7 +686,8 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                                mature_only=True,
                                confirmed_funding_only=confirmed_only,
                                nonlocal_only=nonlocal_only)
-        utxos = [utxo for utxo in utxos if not self.is_frozen_coin(utxo)]
+        # Assets utxos cannot be included in normal RVN transactions
+        utxos = [utxo for utxo in utxos if (not self.is_frozen_coin(utxo) and len(utxo.value_sats().assets) == 0)]
         return utxos
 
     @abstractmethod
@@ -754,7 +756,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         if '!' in (x.value for x in outputs):
             amount = '!'
         else:
-            amount = sum(x.value for x in outputs)
+            amount = sum([x.value for x in outputs], RavenValue())
         timestamp = None
         exp = None
         if URI:
@@ -860,9 +862,9 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         """Returns whether on-chain invoice is satisfied, and list of relevant TXIDs."""
         assert invoice.type == PR_TYPE_ONCHAIN
         assert isinstance(invoice, OnchainInvoice)
-        invoice_amounts = defaultdict(int)  # type: Dict[bytes, int]  # scriptpubkey -> value_sats
+        invoice_amounts = defaultdict(lambda: RavenValue())  # type: Dict[bytes, RavenValue]  # scriptpubkey -> value_sats
         for txo in invoice.outputs:  # type: PartialTxOutput
-            invoice_amounts[txo.scriptpubkey] += 1 if txo.value == '!' else txo.value
+            invoice_amounts[txo.scriptpubkey] += RavenValue(1) if txo.value == '!' else txo.value
         relevant_txs = []
         with self.transaction_lock:
             for invoice_scriptpubkey, invoice_amt in invoice_amounts.items():
@@ -881,7 +883,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 # note: "at least one TXO" check is needed for zero amount invoice (e.g. OP_RETURN)
                 if len(prevouts_and_values) == 0:
                     return False, []
-                if total_received.rvn_value < invoice_amt:
+                if total_received.rvn_value < invoice_amt.rvn_value:
                     return False, []
         return True, relevant_txs
 
@@ -1464,7 +1466,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         value_sats = utxo.value_sats()
         assert value_sats is not None
         threshold = self.config.get('unconf_utxo_freeze_threshold', 5_000)
-        if value_sats >= threshold:
+        if value_sats.rvn_value.value >= threshold:
             return False
         # if funding tx has any is_mine input, then UTXO is fine
         funding_tx = self.db.get_transaction(utxo.prevout.txid.hex())
@@ -2092,6 +2094,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 return True, conf
         return False, None
 
+    # TODO: RVN Only
     def get_request_URI(self, req: OnchainInvoice) -> str:
         addr = req.get_address()
         message = self.get_label(addr)
@@ -2106,7 +2109,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
         #    sig = bitcoin.base_encode(sig, base=58)
         #    extra_query_params['name'] = req['name']
         #    extra_query_params['sig'] = sig
-        uri = create_bip21_uri(addr, amount, message, extra_query_params=extra_query_params)
+        uri = create_bip21_uri(addr, amount.rvn_value.value, message, extra_query_params=extra_query_params)
         return str(uri)
 
     def check_expired_status(self, r: Invoice, status):

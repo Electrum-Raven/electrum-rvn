@@ -254,7 +254,7 @@ class SettingsDialog(WindowModalDialog):
         gui_widgets.append((updatecheck_cb, None))
 
         filelogging_cb = QCheckBox(_("Write logs to file"))
-        filelogging_cb.setChecked(bool(self.config.get('log_to_file', False)))
+        filelogging_cb.setChecked(bool(self.config.get('log_to_file', True)))
         def on_set_filelogging(v):
             self.config.set_key('log_to_file', v == Qt.Checked, save=True)
             self.need_restart = True
@@ -581,7 +581,7 @@ class SettingsDialog(WindowModalDialog):
             (gui_widgets, _('General')),
             (asset_widgets, _('Assets')),
             (tx_widgets, _('Transactions')),
-            (lightning_widgets, _('Lightning')),
+            # (lightning_widgets, _('Lightning')),
             (fiat_widgets, _('Fiat')),
             (oa_widgets, _('OpenAlias')),
         ]

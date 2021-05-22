@@ -58,8 +58,8 @@ def asset_status(asset_data: Union[Dict, AssetMeta]):
     if asset_data:
         if isinstance(asset_data, Dict):
             div_amt = asset_data['divisions']
-            reissuable = False if ['reissuable'] == 0 else True
-            has_ipfs = False if ['has_ipfs'] == 0 else True
+            reissuable = False if asset_data['reissuable'] == 0 else True
+            has_ipfs = False if asset_data['has_ipfs'] == 0 else True
 
             h = ''.join([str(div_amt), str(reissuable), str(has_ipfs)])
             if has_ipfs:

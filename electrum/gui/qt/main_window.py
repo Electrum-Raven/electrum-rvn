@@ -1787,7 +1787,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.show_error(_("More than one output set to spend max"))
             return
 
-        output_value = '!' if '!' in output_values else sum(output_values)
+        output_value = '!' if '!' in output_values else sum(output_values, RavenValue())
         conf_dlg = ConfirmTxDialog(window=self, make_tx=make_tx, output_value=output_value, is_sweep=is_sweep)
         if conf_dlg.not_enough_funds:
             # Check if we had enough funds excluding fees,
@@ -2213,8 +2213,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.contact_list.update()
         self.update_completions()
 
+    # TODO: RVN Only
     def show_onchain_invoice(self, invoice: OnchainInvoice):
-        amount_str = self.format_amount(invoice.amount_sat) + ' ' + self.base_unit()
+        amount_str = self.format_amount(invoice.amount_sat.rvn_value.value) + ' ' + self.base_unit()
         d = WindowModalDialog(self, _("Onchain Invoice"))
         vbox = QVBoxLayout(d)
         grid = QGridLayout()

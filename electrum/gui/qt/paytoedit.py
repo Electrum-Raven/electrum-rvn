@@ -31,8 +31,8 @@ from typing import NamedTuple, Sequence, Optional, List, TYPE_CHECKING
 from PyQt5.QtGui import QFontMetrics, QFont
 
 from electrum import ravencoin
-from electrum.util import bfh, maybe_extract_bolt11_invoice, BITCOIN_BIP21_URI_SCHEME
-from electrum.transaction import PartialTxOutput
+from electrum.util import bfh, maybe_extract_bolt11_invoice, BITCOIN_BIP21_URI_SCHEME, Satoshis
+from electrum.transaction import PartialTxOutput, RavenValue
 from electrum.ravencoin import opcodes, construct_script
 from electrum.logging import Logger
 from electrum.lnaddr import LnDecodeException
@@ -236,7 +236,7 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit, Logger):
             if is_max:
                 amount = '!'
             else:
-                amount = self.amount_edit.get_amount()
+                amount = RavenValue(Satoshis(self.amount_edit.get_amount()))
             self.outputs = [PartialTxOutput(scriptpubkey=self.payto_scriptpubkey, value=amount)]
 
         return self.outputs[:]

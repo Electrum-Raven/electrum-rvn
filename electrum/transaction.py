@@ -1957,12 +1957,13 @@ class PartialTransaction(Transaction):
             txin.nsequence = nSequence
         self.invalidate_ser_cache()
 
+    # TODO: RVN Only
     def BIP69_sort(self, inputs=True, outputs=True):
         # NOTE: other parts of the code rely on these sorts being *stable* sorts
         if inputs:
             self._inputs.sort(key = lambda i: (i.prevout.txid, i.prevout.out_idx))
         if outputs:
-            self._outputs.sort(key = lambda o: (o.value, o.scriptpubkey))
+            self._outputs.sort(key = lambda o: (o.value.rvn_value.value, o.scriptpubkey))
         self.invalidate_ser_cache()
 
     def input_value(self) -> RavenValue:

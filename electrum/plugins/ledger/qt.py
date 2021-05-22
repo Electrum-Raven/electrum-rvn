@@ -8,7 +8,7 @@ from electrum.plugin import hook
 from electrum.wallet import Standard_Wallet
 from electrum.gui.qt.util import WindowModalDialog
 
-from .ledger import LedgerPlugin, Ledger_Client, AtomicBoolean
+from .ledger import LedgerPlugin, Ledger_Client, AtomicBoolean, AbstractTracker
 from ..hw_wallet.qt import QtHandlerBase, QtPluginBase
 from ..hw_wallet.plugin import only_hook_if_libraries_available
 
@@ -34,7 +34,7 @@ class Plugin(LedgerPlugin, QtPluginBase):
 
 
 class Ledger_UI(WindowModalDialog):
-    def __init__(self, parse_data, atomic_b: AtomicBoolean, parent=None, title='Ledger UI'):
+    def __init__(self, parse_data: AbstractTracker, atomic_b: AtomicBoolean, parent=None, title='Ledger UI'):
         super().__init__(parent, title)
         # self.setWindowModality(Qt.NonModal)
         # Thread interrupter. If we cancel, set true
@@ -76,7 +76,7 @@ class Ledger_Handler(QtHandlerBase):
     setup_signal = pyqtSignal()
     auth_signal = pyqtSignal(object, object)
     ui_start_signal = pyqtSignal(object, object, object)
-    ui_stop_signal = pyqtSignal(object, object, object)
+    ui_stop_signal = pyqtSignal()
 
     def __init__(self, win):
         super(Ledger_Handler, self).__init__(win, 'Ledger')
