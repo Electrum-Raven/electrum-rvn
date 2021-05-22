@@ -566,6 +566,132 @@ class HistoryModel(CustomModel, Logger):
         return tx_mined_info
 
 
+class AssetHistoryModel(HistoryModel):
+    def __init__(self, parent, asset):
+        HistoryModel.__init__(self, parent)
+        self.asset = asset
+
+    @profiler
+    def refresh(self, reason: str):
+        self.logger.info(f"refreshing... reason: {reason}")
+        assert self.parent.gui_thread == threading.current_thread(), 'must be called from GUI thread'
+        assert self.view, 'view not set'
+        if self.view.maybe_defer_update():
+            return
+        selected = self.view.selectionModel().currentIndex()
+        selected_row = None
+        if selected:
+            selected_row = selected.row()
+        fx = self.parent.fx
+        if fx: fx.history_used_spot = False
+        wallet = self.parent.wallet
+        self.set_visibility_of_columns()
+        transactions = wallet.get_full_history(
+            self.parent.fx,
+            onchain_domain=self.get_domain(),
+            include_lightning=self.should_include_lightning_payments())
+        if transactions == self.transactions:
+            return
+        old_length = self._root.childCount()
+        if old_length != 0:
+            self.beginRemoveRows(QModelIndex(), 0, old_length)
+            self.transactions.clear()
+            self._root = HistoryNode(self, None)
+            self.endRemoveRows()
+        parents = {}
+
+        def should_show(asset):
+            if asset != self.asset:
+                return False
+            should_show = True
+            if not self.parent.config.get('show_spam_assets', False):
+                for regex in self.parent.asset_blacklist:
+                    if re.search(regex, asset):
+                        should_show = False
+                        break
+
+                for regex in self.parent.asset_whitelist:
+                    if re.search(regex, asset):
+                        should_show = True
+                        break
+
+            return should_show
+
+        for tx_item in transactions.values():
+
+            # Create separate rows for assets
+
+            value = tx_item['value']  # type: RavenValue
+            lightning = tx_item.get('lightning', False)
+            timestamp = tx_item.get('timestamp')
+            txid = tx_item.get('txid')
+            confirmations = tx_item.get('confirmations', 0)
+            label = tx_item.get('label')
+            fiat_value = tx_item.get('fiat_value')
+            fiat_default = tx_item.get('fiat_default', False)
+            acqu_price = tx_item.get('acquisition_price')
+            fiat_gain = tx_item.get('capital_gain')
+            payment_hash = tx_item.get('payment_hash')
+            height = tx_item.get('height')
+            type = tx_item.get('type')
+            channel_id = tx_item.get('channel_id')
+            preimage = tx_item.get('preimage')
+
+            for asset in value.assets:
+
+                if not should_show(asset):
+                    continue
+
+                asset_name = asset
+                amount = value.assets[asset]
+                balance = tx_item['balance'].assets[asset]
+
+                node_data = HistoryNodeData(
+                    lightning=lightning,
+                    timestamp=timestamp,
+                    txid=txid,
+                    confirmations=confirmations,
+                    label=label,
+                    asset_name=asset_name,
+                    amount=amount,
+                    balance=balance,
+                    fiat_value=fiat_value,
+                    fiat_default=fiat_default,
+                    acqu_price=acqu_price,
+                    fiat_gain=fiat_gain,
+                    payment_hash=payment_hash,
+                    height=height,
+                    type=type,
+                    channel_id=channel_id,
+                    preimage=preimage
+                )
+                self.add_history_node(node_data, parents, tx_item)
+
+        new_length = self._root.childCount()
+        self.beginInsertRows(QModelIndex(), 0, new_length - 1)
+        self.transactions = transactions
+        self.endInsertRows()
+
+        if selected_row:
+            self.view.selectionModel().select(self.createIndex(selected_row, 0),
+                                              QItemSelectionModel.Rows | QItemSelectionModel.SelectCurrent)
+        self.view.filter()
+        # update time filter
+        if not self.view.years and self.transactions:
+            start_date = date.today()
+            end_date = date.today()
+            if len(self.transactions) > 0:
+                start_date = self.transactions.value_from_pos(0).get('date') or start_date
+                end_date = self.transactions.value_from_pos(len(self.transactions) - 1).get('date') or end_date
+            self.view.years = [str(i) for i in range(start_date.year, end_date.year + 1)]
+            self.view.period_combo.insertItems(1, self.view.years)
+        # update tx_status_cache
+        self.tx_status_cache.clear()
+        for txid, tx_item in self.transactions.items():
+            if not tx_item.get('lightning', False):
+                tx_mined_info = self.tx_mined_info_from_tx_item(tx_item)
+                self.tx_status_cache[txid] = self.parent.wallet.get_tx_status(txid, tx_mined_info)
+
 class HistoryList(MyTreeView, AcceptFileDragDrop):
     filter_columns = [HistoryColumns.STATUS,
                       HistoryColumns.DESCRIPTION,
