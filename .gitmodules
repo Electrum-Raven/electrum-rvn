@@ -7,3 +7,6 @@
 [submodule "electrum/www"]
 	path = electrum/www
 	url = https://github.com/spesmilo/electrum-http.git
+[submodule "contrib/osx/CalinsQRReader"]
+	path = contrib/osx/CalinsQRReader
+	url = https://github.com/spesmilo/CalinsQRReader
