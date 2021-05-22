@@ -552,7 +552,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         except:
             self.logger.info("using default geometry")
             if not self.isMaximized():
-                self.setGeometry(100, 100, 840, 400)
+                self.setGeometry(100, 100, 950, 500)
 
     def watching_only_changed(self):
         name = "Electrum Testnet" if constants.net.TESTNET else "Electrum"
@@ -1175,7 +1175,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.clear_invoice_button = QPushButton(_('Clear'))
         self.clear_invoice_button.clicked.connect(self.clear_receive_tab)
         self.create_invoice_button = QPushButton(_('New Address'))
-        self.create_invoice_button.setIcon(read_QIcon("bitcoin.png"))
+        self.create_invoice_button.setIcon(read_QIcon("ravencoin.png"))
         self.create_invoice_button.setToolTip('Create on-chain request')
         self.create_invoice_button.clicked.connect(lambda: self.create_invoice(False))
         self.receive_buttons = buttons = QHBoxLayout()

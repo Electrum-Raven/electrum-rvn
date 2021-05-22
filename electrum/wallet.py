@@ -202,7 +202,7 @@ async def sweep(
         locktime = get_locktime_for_new_transaction(network)
 
     tx = PartialTransaction.from_io(inputs, outputs, locktime=locktime, version=tx_version)
-    rbf = bool(config.get('use_rbf', True))
+    rbf = bool(config.get('use_rbf', False))
     tx.set_rbf(rbf)
     tx.sign(keypairs)
     return tx

@@ -501,6 +501,6 @@ def get_coin_chooser(config):
     #       + it also helps the network as a whole as fees will become noisier
     #         (trying to counter the heuristic that "whole integer sat/byte feerates" are common)
     coinchooser = klass(
-        enable_output_value_rounding=config.get('coin_chooser_output_rounding', True),
+        enable_output_value_rounding=config.get('coin_chooser_output_rounding', False),
     )
     return coinchooser

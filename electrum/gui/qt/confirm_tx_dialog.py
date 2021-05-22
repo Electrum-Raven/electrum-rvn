@@ -110,7 +110,7 @@ class TxEditor:
             self.tx = None
             self.main_window.show_error(str(e))
             raise
-        use_rbf = bool(self.config.get('use_rbf', True))
+        use_rbf = bool(self.config.get('use_rbf', False))
         self.tx.set_rbf(use_rbf)
 
     def have_enough_funds_assuming_zero_fees(self) -> bool:
@@ -139,7 +139,7 @@ class ConfirmTxDialog(TxEditor, WindowModalDialog):
         grid.addWidget(QLabel(_("Amount to be sent") + ": "), 0, 0)
         grid.addWidget(self.amount_label, 0, 1)
 
-        msg = _('Bitcoin transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
+        msg = _('Ravencoin transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
               + _('The amount of fee can be decided freely by the sender. However, transactions with low fees take more time to be processed.') + '\n\n'\
               + _('A suggested fee is automatically added to this field. You may override it. The suggested fee increases with the size of the transaction.')
         self.fee_label = QLabel('')

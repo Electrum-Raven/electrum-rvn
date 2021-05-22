@@ -151,7 +151,7 @@ class LNChannelVerifier(NetworkJobOnDefaultServer):
             return
         # check funding output
         chan_ann_msg = self.unverified_channel_info[short_channel_id]
-        redeem_script = funding_output_script_from_keys(chan_ann_msg['bitcoin_key_1'], chan_ann_msg['bitcoin_key_2'])
+        redeem_script = funding_output_script_from_keys(chan_ann_msg['ravencoin_key_1'], chan_ann_msg['ravencoin_key_2'])
         expected_address = ravencoin.redeem_script_to_address('p2wsh', redeem_script)
         try:
             actual_output = tx.outputs()[short_channel_id.output_index]

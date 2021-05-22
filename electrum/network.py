@@ -1027,7 +1027,7 @@ class Network(Logger, NetworkRetryManager[ServerAddr]):
             r"bad-txns-too-many-sigops": None,
             r"mempool min fee not met":
                 ("mempool min fee not met\n" +
-                 _("Your transaction is paying a fee that is so low that the bitcoin node cannot "
+                 _("Your transaction is paying a fee that is so low that the ravencoin node cannot "
                    "fit it into its mempool. The mempool is already full of hundreds of megabytes "
                    "of transactions that all pay higher fees. Try to increase the fee.")),
             r"min relay fee not met": None,
