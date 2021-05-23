@@ -131,10 +131,18 @@ info "installing electrum and its dependencies."
 #       - cryptography, as building it would need openssl 1.1, not available on ubuntu 16.04
 "$python" -m pip install --no-dependencies --no-binary :all: --no-warn-script-location \
     --cache-dir "$PIP_CACHE_DIR" -r "$CONTRIB/deterministic-build/requirements.txt"
-"$python" -m pip install --no-dependencies --no-binary :all: --only-binary PyQt5,PyQt5-Qt5,cryptography,kawpow --no-warn-script-location \
+"$python" -m pip install --no-dependencies --no-binary :all: --only-binary PyQt5,PyQt5-Qt5,cryptography --no-warn-script-location \
     --cache-dir "$PIP_CACHE_DIR" -r "$CONTRIB/deterministic-build/requirements-binaries.txt"
 "$python" -m pip install --no-dependencies --no-binary :all: --no-warn-script-location \
     --cache-dir "$PIP_CACHE_DIR" -r "$CONTRIB/deterministic-build/requirements-hw.txt"
+
+# TODO: Find someone better at docker to fix this
+"$python" -m pip install --cache-dir "$PIP_CACHE_DIR" kawpow==0.9.4.4 \
+    --hash=sha256:1dbea4631b407f4c68426825b021d843d40d895ae84fc8ea34aac23298f197d6 \
+    --hash=sha256:071177b54aef75e54a30e74935259ba42b765842112ea781c7c6be25e8a65752 \
+    --hash=sha256:9804d8ed76d802aece568ecb70a517dedd4620bf1de271ab671bc330f47a2052 \
+    --hash=sha256:d266b18c1080d0cb736c8942d1f4e04469296562df3308259377af4d7148bc52 \
+    --hash=sha256:05c9bc442ba5a241f70e134bd47c1516fb979dc48c1b92514f5dbff09f671c94
 
 "$python" -m pip install --no-dependencies --no-warn-script-location \
     --cache-dir "$PIP_CACHE_DIR" "$PROJECT_ROOT"
