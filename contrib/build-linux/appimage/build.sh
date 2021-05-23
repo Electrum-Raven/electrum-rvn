@@ -131,15 +131,12 @@ info "installing electrum and its dependencies."
 #       - cryptography, as building it would need openssl 1.1, not available on ubuntu 16.04
 "$python" -m pip install --no-dependencies --no-binary :all: --no-warn-script-location \
     --cache-dir "$PIP_CACHE_DIR" -r "$CONTRIB/deterministic-build/requirements.txt"
+    "$python" -m pip install --no-dependencies --no-binary :all: --no-warn-script-location \
+    --cache-dir "$PIP_CACHE_DIR" -r "$CONTRIB/deterministic-build/requirements-ravencoin.txt"
 "$python" -m pip install --no-dependencies --no-binary :all: --only-binary PyQt5,PyQt5-Qt5,cryptography --no-warn-script-location \
-    --cache-dir "$PIP_CACHE_DIR" -r <(sed -e '/kawpow/,$d' "$CONTRIB/deterministic-build/requirements-binaries.txt")
-
-# This is in the requirements file, but no-deps breaks it...
-# Should be fine since we have all of the requirements installed earlier...
-# TODO: Unscuff this with someone who knows more about pip than I do
+    --cache-dir "$PIP_CACHE_DIR" -r "$CONTRIB/deterministic-build/requirements-binaries.txt"
 "$python" -m pip install --no-binary :all: --no-warn-script-location \
-    --cache-dir "$PIP_CACHE_DIR" -r <(sed -n -e '/kawpow/,$p' "$CONTRIB/deterministic-build/requirements-binaries.txt")
-
+    --cache-dir "$PIP_CACHE_DIR" -r "$CONTRIB/deterministic-build/requirements-ravencoin-binaries.txt"
 "$python" -m pip install --no-dependencies --no-binary :all: --no-warn-script-location \
     --cache-dir "$PIP_CACHE_DIR" -r "$CONTRIB/deterministic-build/requirements-hw.txt"
 
