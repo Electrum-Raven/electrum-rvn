@@ -45,9 +45,6 @@ $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
 $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
     --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-hw.txt
 
-# TODO: Find someone better at pip to fix this
-$WINE_PYTHON -m pip install --cache-dir "$WINE_PIP_CACHE_DIR" kawpow==0.9.4.4
-
 pushd $WINEPREFIX/drive_c/electrum
 # see https://github.com/pypa/pip/issues/2195 -- pip makes a copy of the entire directory
 info "Pip installing Electrum. This might take a long time if the project folder is large."

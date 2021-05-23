@@ -136,9 +136,6 @@ info "installing electrum and its dependencies."
 "$python" -m pip install --no-dependencies --no-binary :all: --no-warn-script-location \
     --cache-dir "$PIP_CACHE_DIR" -r "$CONTRIB/deterministic-build/requirements-hw.txt"
 
-# TODO: Find someone better at pip to fix this
-"$python" -m pip install --cache-dir "$PIP_CACHE_DIR" kawpow==0.9.4.4
-
 "$python" -m pip install --no-dependencies --no-warn-script-location \
     --cache-dir "$PIP_CACHE_DIR" "$PROJECT_ROOT"
 
