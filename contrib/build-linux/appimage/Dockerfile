@@ -11,7 +11,10 @@ RUN apt-get update -q && \
         git=1:2.7.4-0ubuntu1.10 \
         wget=1.17.1-1ubuntu1.5 \
         make=4.1-6 \
+        # For kawpow
         cmake=3.5.1-1ubuntu3 \
+        g++=4:5.3.1-1ubuntu1 \
+        # End for kawpow
         autotools-dev=20150820.1 \
         autoconf=2.69-9 \
         libtool=2.4.6-0.1 \
