@@ -172,26 +172,26 @@ class CoinGecko(ExchangeBase):
                                     '/api/v3/coins/ravencoin/market_chart?vs_currency=%s&days=max' % ccy)
         return dict([(datetime.utcfromtimestamp(d[0] / 1000).strftime('%Y-%m-%d'), d[1]) for d in dicts['prices']])
 
-    class Bittrex(ExchangeBase):
-        # Refer to https://bittrex.github.io/api/v3
+class Bittrex(ExchangeBase):
+    # Refer to https://bittrex.github.io/api/v3
 
-        async def get_currencies(self):
-            dicts = await self.get_json('api.bittrex.com',
-                                        '/v3/markets')
-            return [d['symbol'][4:] for d in dicts if d['symbol'][:4] == 'RVN-']
+    async def get_currencies(self):
+        dicts = await self.get_json('api.bittrex.com',
+                                    '/v3/markets')
+        return [d['symbol'][4:] for d in dicts if d['symbol'][:4] == 'RVN-']
 
-        async def get_rates(self, ccy):
-            dicts = await self.get_json('api.bittrex.com',
-                                        '/v3/markets/RVN-%s/ticker' % ccy)
-            return {ccy: dicts['lastTradeRate']}
+    async def get_rates(self, ccy):
+        dicts = await self.get_json('api.bittrex.com',
+                                    '/v3/markets/RVN-%s/ticker' % ccy)
+        return {ccy: dicts['lastTradeRate']}
 
-        def history_ccys(self):
-            return CURRENCIES[self.name()]
+    def history_ccys(self):
+        return CURRENCIES[self.name()]
 
-        async def request_history(self, ccy):
-            dicts = await self.get_json('api.bittrex.com',
-                                        'v3/markets/RVN-%s/candles/TRADE/DAY_1/recent' % ccy)
-            return dict([(d['startsAt'][:10], d['close']) for d in dicts])
+    async def request_history(self, ccy):
+        dicts = await self.get_json('api.bittrex.com',
+                                    'v3/markets/RVN-%s/candles/TRADE/DAY_1/recent' % ccy)
+        return dict([(d['startsAt'][:10], d['close']) for d in dicts])
 
     # TODO: Add more exchange API's
 
@@ -207,7 +207,7 @@ def dictinvert(d):
 
 def get_exchanges_and_currencies():
     # load currencies.json from disk
-    path = resource_path('currencies.json')
+    path = os.path.join(util.user_dir(), 'currencies.json')
     try:
         with open(path, 'r', encoding='utf-8') as f:
             return json.loads(f.read())
