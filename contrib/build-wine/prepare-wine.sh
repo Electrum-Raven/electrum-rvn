@@ -15,6 +15,7 @@ PYINSTALLER_COMMIT="80ee4d613ecf75a1226b960a560ee01459e65ddb"
 
 PYTHON_VERSION=3.8.8
 
+PYTHON_OLD_VERSION=3.6.8
 
 # Let's begin!
 set -e
@@ -42,14 +43,24 @@ elif [ "$WIN_ARCH" = "win64" ] ; then
 else
     fail "unexpected WIN_ARCH: $WIN_ARCH"
 fi
-PYTHON_DOWNLOADS="$CACHEDIR/python$PYTHON_VERSION"
-mkdir -p "$PYTHON_DOWNLOADS"
+#PYTHON_DOWNLOADS="$CACHEDIR/python$PYTHON_VERSION"
+#mkdir -p "$PYTHON_DOWNLOADS"
+#for msifile in core dev exe lib pip tools; do
+#    echo "Installing $msifile..."
+#    download_if_not_exist "$PYTHON_DOWNLOADS/${msifile}.msi" "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYARCH/${msifile}.msi"
+#    download_if_not_exist "$PYTHON_DOWNLOADS/${msifile}.msi.asc" "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYARCH/${msifile}.msi.asc"
+#    verify_signature "$PYTHON_DOWNLOADS/${msifile}.msi.asc" $KEYRING_PYTHON_DEV
+#    wine msiexec /i "$PYTHON_DOWNLOADS/${msifile}.msi" /qb TARGETDIR="$WINE_PYHOME"
+#done
+
+PYTHON_OLD_DOWNLOADS="$CACHEDIR/python$PYTHON_OLD_VERSION"
+mkdir -p "$PYTHON_OLD_DOWNLOADS"
 for msifile in core dev exe lib pip tools; do
-    echo "Installing $msifile..."
-    download_if_not_exist "$PYTHON_DOWNLOADS/${msifile}.msi" "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYARCH/${msifile}.msi"
-    download_if_not_exist "$PYTHON_DOWNLOADS/${msifile}.msi.asc" "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYARCH/${msifile}.msi.asc"
-    verify_signature "$PYTHON_DOWNLOADS/${msifile}.msi.asc" $KEYRING_PYTHON_DEV
-    wine msiexec /i "$PYTHON_DOWNLOADS/${msifile}.msi" /qb TARGETDIR=$WINE_PYHOME
+    echo "Installing $PYTHON_OLD_VERSION $msifile..."
+    download_if_not_exist "$PYTHON_OLD_DOWNLOADS/${msifile}.msi" "https://www.python.org/ftp/python/$PYTHON_OLD_VERSION/$PYARCH/${msifile}.msi"
+    download_if_not_exist "$PYTHON_OLD_DOWNLOADS/${msifile}.msi.asc" "https://www.python.org/ftp/python/$PYTHON_OLD_VERSION/$PYARCH/${msifile}.msi.asc"
+    verify_signature "$PYTHON_OLD_DOWNLOADS/${msifile}.msi.asc" $KEYRING_PYTHON_DEV
+    wine msiexec /i "$PYTHON_OLD_DOWNLOADS/${msifile}.msi" /qb TARGETDIR="$WINE_PYHOME"
 done
 
 break_legacy_easy_install
