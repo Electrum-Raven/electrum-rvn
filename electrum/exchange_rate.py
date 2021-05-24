@@ -207,6 +207,8 @@ def dictinvert(d):
 
 def get_exchanges_and_currencies():
     # load currencies.json from disk
+    if not os.path.exists(util.user_dir()):
+        os.mkdir(util.user_dir())
     path = os.path.join(util.user_dir(), 'currencies.json')
     try:
         with open(path, 'r', encoding='utf-8') as f:
