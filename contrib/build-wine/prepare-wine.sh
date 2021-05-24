@@ -43,15 +43,15 @@ elif [ "$WIN_ARCH" = "win64" ] ; then
 else
     fail "unexpected WIN_ARCH: $WIN_ARCH"
 fi
-#PYTHON_DOWNLOADS="$CACHEDIR/python$PYTHON_VERSION"
-#mkdir -p "$PYTHON_DOWNLOADS"
-#for msifile in core dev exe lib pip tools; do
-#    echo "Installing $msifile..."
-#    download_if_not_exist "$PYTHON_DOWNLOADS/${msifile}.msi" "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYARCH/${msifile}.msi"
-#    download_if_not_exist "$PYTHON_DOWNLOADS/${msifile}.msi.asc" "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYARCH/${msifile}.msi.asc"
-#    verify_signature "$PYTHON_DOWNLOADS/${msifile}.msi.asc" $KEYRING_PYTHON_DEV
-#    wine msiexec /i "$PYTHON_DOWNLOADS/${msifile}.msi" /qb TARGETDIR="$WINE_PYHOME"
-#done
+PYTHON_DOWNLOADS="$CACHEDIR/python$PYTHON_VERSION"
+mkdir -p "$PYTHON_DOWNLOADS"
+for msifile in core dev exe lib pip tools; do
+    echo "Installing $msifile..."
+    download_if_not_exist "$PYTHON_DOWNLOADS/${msifile}.msi" "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYARCH/${msifile}.msi"
+    download_if_not_exist "$PYTHON_DOWNLOADS/${msifile}.msi.asc" "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYARCH/${msifile}.msi.asc"
+    verify_signature "$PYTHON_DOWNLOADS/${msifile}.msi.asc" $KEYRING_PYTHON_DEV
+    wine msiexec /i "$PYTHON_DOWNLOADS/${msifile}.msi" /qb TARGETDIR="$WINE_PYHOME"
+done
 
 PYTHON_OLD_DOWNLOADS="$CACHEDIR/python$PYTHON_OLD_VERSION"
 mkdir -p "$PYTHON_OLD_DOWNLOADS"
@@ -60,7 +60,7 @@ for msifile in core dev exe lib pip tools; do
     download_if_not_exist "$PYTHON_OLD_DOWNLOADS/${msifile}.msi" "https://www.python.org/ftp/python/$PYTHON_OLD_VERSION/$PYARCH/${msifile}.msi"
     download_if_not_exist "$PYTHON_OLD_DOWNLOADS/${msifile}.msi.asc" "https://www.python.org/ftp/python/$PYTHON_OLD_VERSION/$PYARCH/${msifile}.msi.asc"
     verify_signature "$PYTHON_OLD_DOWNLOADS/${msifile}.msi.asc" $KEYRING_PYTHON_DEV
-    wine msiexec /i "$PYTHON_OLD_DOWNLOADS/${msifile}.msi" /qb TARGETDIR="$WINE_PYHOME"
+    wine msiexec /i "$PYTHON_OLD_DOWNLOADS/${msifile}.msi" /qb TARGETDIR="$WINE_PYHOME_OLD"
 done
 
 break_legacy_easy_install

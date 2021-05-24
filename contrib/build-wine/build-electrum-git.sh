@@ -45,9 +45,17 @@ $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
 $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
     --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-hw.txt
 
+$WINE_PYTHON_OLD -m pip install --no-dependencies --no-warn-script-location \
+    --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin.txt
+
+# Mark as installed with newest pip
 $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
     --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin.txt
 
+$WINE_PYTHON_OLD -m pip install --no-dependencies --no-warn-script-location \
+    --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin-binaries.txt
+
+# Mark as installed with newest pip
 $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
     --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin-binaries.txt
 
