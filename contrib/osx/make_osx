@@ -149,6 +149,15 @@ info "Installing dependencies specific to binaries..."
 python3 -m pip install --no-dependencies --no-warn-script-location -Ir ./contrib/deterministic-build/requirements-binaries-mac.txt \
     || fail "Could not install dependencies specific to binaries"
 
+info "Installing PyQt5-Qt5"
+(
+  cd "$BUILDDIR" || fail "$BUILDDIR doesn't exist"
+  curl -O https://files.pythonhosted.org/packages/62/09/99a222b0360616250fb2e6003a54e43a2a06b0774f0f8d5daafb86a2c375/PyQt5_Qt5-5.15.2-py3-none-macosx_10_13_intel.whl
+  echo "76980cd3d7ae87e3c7a33bfebfaee84448fd650bad6840471d6cae199b56e154  $BUILDDIR/PyQt5_Qt5-5.15.2-py3-none-macosx_10_13_intel.whl" | \
+    shasum -a 256 -c || fail "PyQt-Qt5 checksum mismatched"
+  python3 -m pip install "$BUILDDIR/PyQt5_Qt5-5.15.2-py3-none-macosx_10_13_intel.whl"
+)
+
 info "Installing dependencies specific to ravencoin..."
 python3 -m pip install --no-dependencies --no-warn-script-location -Ir ./contrib/deterministic-build/requirements-ravencoin.txt \
     || fail "Could not install dependencies specific to ravencoin"
