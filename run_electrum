@@ -338,7 +338,7 @@ def main():
         config_options['portable'] = True
 
     if config_options.get('portable'):
-        config_options['electrum_path'] = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'electrum_data')
+        config_options['electrum_path'] = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'electrum_ravencoin_data')
 
     if not config_options.get('verbosity'):
         warnings.simplefilter('ignore', DeprecationWarning)

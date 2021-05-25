@@ -149,6 +149,14 @@ info "Installing dependencies specific to binaries..."
 python3 -m pip install --no-dependencies --no-warn-script-location -Ir ./contrib/deterministic-build/requirements-binaries-mac.txt \
     || fail "Could not install dependencies specific to binaries"
 
+info "Installing dependencies specific to ravencoin..."
+python3 -m pip install --no-dependencies --no-warn-script-location -Ir ./contrib/deterministic-build/requirements-ravencoin.txt \
+    || fail "Could not install dependencies specific to ravencoin"
+
+info "Installing dependencies specific to ravencoin binaries..."
+python3 -m pip install --no-warn-script-location -Ir ./contrib/deterministic-build/requirements-ravencoin-binaries.txt \
+    || fail "Could not install dependencies specific to ravencoin binaries"
+
 info "Building $PACKAGE..."
 python3 -m pip install --no-dependencies --no-warn-script-location . > /dev/null || fail "Could not build $PACKAGE"
 
