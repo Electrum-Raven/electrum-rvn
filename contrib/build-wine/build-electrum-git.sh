@@ -34,6 +34,7 @@ popd
 find -exec touch -d '2000-11-11T11:11:11+00:00' {} +
 popd
 
+printenv
 
 # Install frozen dependencies
 $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
@@ -45,19 +46,11 @@ $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
 $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
     --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-hw.txt
 
-$WINE_PYTHON_OLD -m pip install --no-dependencies --no-warn-script-location \
-    --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin.txt
-
-# Mark as installed with newest pip
 $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
-    --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin.txt
+   --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin.txt
 
-$WINE_PYTHON_OLD -m pip install --no-dependencies --no-warn-script-location \
-    --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin-binaries.txt
-
-# Mark as installed with newest pip
 $WINE_PYTHON -m pip install --no-dependencies --no-warn-script-location \
-    --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin-binaries.txt
+   --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-ravencoin-binaries.txt
 
 pushd $WINEPREFIX/drive_c/electrum
 # see https://github.com/pypa/pip/issues/2195 -- pip makes a copy of the entire directory

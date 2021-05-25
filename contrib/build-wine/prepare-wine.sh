@@ -13,9 +13,8 @@ PYINSTALLER_REPO="https://github.com/SomberNight/pyinstaller.git"
 PYINSTALLER_COMMIT="80ee4d613ecf75a1226b960a560ee01459e65ddb"
 # ^ tag 4.2, plus a custom commit that fixes cross-compilation with MinGW
 
-PYTHON_VERSION=3.8.8
-
-PYTHON_OLD_VERSION=3.6.8
+# Older version required for x16r, x16rv2, and kawpow modules
+PYTHON_VERSION=3.6.8
 
 # Let's begin!
 set -e
@@ -53,16 +52,6 @@ for msifile in core dev exe lib pip tools; do
     wine msiexec /i "$PYTHON_DOWNLOADS/${msifile}.msi" /qb TARGETDIR="$WINE_PYHOME"
 done
 
-PYTHON_OLD_DOWNLOADS="$CACHEDIR/python$PYTHON_OLD_VERSION"
-mkdir -p "$PYTHON_OLD_DOWNLOADS"
-for msifile in core dev exe lib pip tools; do
-    echo "Installing $PYTHON_OLD_VERSION $msifile..."
-    download_if_not_exist "$PYTHON_OLD_DOWNLOADS/${msifile}.msi" "https://www.python.org/ftp/python/$PYTHON_OLD_VERSION/$PYARCH/${msifile}.msi"
-    download_if_not_exist "$PYTHON_OLD_DOWNLOADS/${msifile}.msi.asc" "https://www.python.org/ftp/python/$PYTHON_OLD_VERSION/$PYARCH/${msifile}.msi.asc"
-    verify_signature "$PYTHON_OLD_DOWNLOADS/${msifile}.msi.asc" $KEYRING_PYTHON_DEV
-    wine msiexec /i "$PYTHON_OLD_DOWNLOADS/${msifile}.msi" /qb TARGETDIR="$WINE_PYHOME_OLD"
-done
-
 break_legacy_easy_install
 
 info "Installing build dependencies."
@@ -73,7 +62,6 @@ info "Installing NSIS."
 download_if_not_exist "$CACHEDIR/$NSIS_FILENAME" "$NSIS_URL"
 verify_hash "$CACHEDIR/$NSIS_FILENAME" "$NSIS_SHA256"
 wine "$CACHEDIR/$NSIS_FILENAME" /S
-
 
 info "Compiling libusb..."
 (
