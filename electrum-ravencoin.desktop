@@ -7,8 +7,8 @@ Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\"; electrum %u"
 GenericName[en_US]=Ravencoin Wallet
 GenericName=Ravencoin Wallet
 Icon=electrum-ravencoin
-Name[en_US]=Ravencoin Bitcoin Wallet
-Name=Ravencoin Bitcoin Wallet
+Name[en_US]=Ravencoin Wallet
+Name=Ravencoin Wallet
 Categories=Finance;Network;
 StartupNotify=true
 StartupWMClass=electrum

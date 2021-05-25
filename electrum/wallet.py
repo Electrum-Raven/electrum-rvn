@@ -2096,7 +2096,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
             conf = tx_height.conf
             l.append((conf, v))
         vsum = RavenValue()
-        for conf, v in reversed(sorted(l)):
+        for conf, v in reversed(sorted(l, key=lambda t: t[0])):
             vsum += v
             if vsum.rvn_value >= amount.rvn_value:
                 return True, conf
