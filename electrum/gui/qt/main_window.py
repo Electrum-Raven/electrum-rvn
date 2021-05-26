@@ -2251,7 +2251,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             grid.addWidget(QLabel(invoice.get_address()), 2, 1)
         else:
             outputs_str = '\n'.join(
-                map(lambda x: x.address + ' : ' + self.format_amount(x.value) + self.base_unit(), invoice.outputs))
+                map(lambda x: str(x.address) + ' : ' + self.format_amount(x.value.rvn_value) + self.base_unit(), invoice.outputs))
             grid.addWidget(QLabel(_("Outputs") + ':'), 2, 0)
             grid.addWidget(QLabel(outputs_str), 2, 1)
         grid.addWidget(QLabel(_("Description") + ':'), 3, 0)
