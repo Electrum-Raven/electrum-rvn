@@ -1455,17 +1455,17 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.amount_e.frozen.connect(
             lambda: self.fiat_send_e.setFrozen(self.amount_e.isReadOnly()))
 
-        hide_pub = self.config.get('tx_custom_message', False)
+        vis = self.config.get('enable_op_return_messages', False)
 
-        msg = _('Null pubkey message.') + '\n\n' \
+        msg = _('OP_RETURN message.') + '\n\n' \
               + _('A short message to be encoded in a null pubkey') + ' ' \
               + _(
             'Note that this is not an intented feature of Ravencoin and may be removed in the future.') + '\n\n' \
               + _('This will increase your fee slightly.')
         self.pubkey_label = HelpLabel(_('Pubkey Message'), msg)
         grid.addWidget(self.pubkey_label, 7, 0)
-        self.pubkey_label.setVisible(hide_pub)
-        self.pubkey_e.setVisible(hide_pub)
+        self.pubkey_label.setVisible(vis)
+        self.pubkey_e.setVisible(vis)
         grid.addWidget(self.pubkey_e, 7, 1)
 
         self.max_button = EnterButton(_("Max"), self.spend_max)
@@ -3325,9 +3325,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.history_model.refresh('Changed asset white or black list', True)
         if d.need_restart:
             self.show_warning(_('Please restart Electrum to activate the new GUI settings'), title=_('Success'))
-        hide_pub = self.config.get('tx_custom_message', False)
-        self.pubkey_label.setVisible(hide_pub)
-        self.pubkey_e.setVisible(hide_pub)
+        vis = self.config.get('enable_op_return_messages', False)
+        self.pubkey_label.setVisible(vis)
+        self.pubkey_e.setVisible(vis)
 
     def closeEvent(self, event):
         # note that closeEvent is NOT called if the user quits with Ctrl-C

@@ -342,9 +342,9 @@ class SettingsDialog(WindowModalDialog):
         tx_widgets.append((outrounding_cb, None))
 
         def on_msgs(x):
-            self.config.set_key('tx_custom_message', bool(x))
-        enable_tx_custom_message = bool(self.config.get('tx_custom_message', False))
-        tx_custom_message = QCheckBox(_('Enable null pubkey messages'))
+            self.config.set_key('enable_op_return_messages', bool(x))
+        enable_tx_custom_message = bool(self.config.get('enable_op_return_messages', False))
+        tx_custom_message = QCheckBox(_('Enable OP_RETURN messages'))
         tx_custom_message.setToolTip(
             _('Add the ability to add an invalid pubkey to a transaction') + '\n' +
             _('that has been encoded with a short message.') + '\n' +
