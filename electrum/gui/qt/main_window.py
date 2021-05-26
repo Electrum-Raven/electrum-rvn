@@ -1415,8 +1415,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         from .paytoedit import PayToEdit
         self.amount_e = BTCAmountEdit(self.get_decimal_point)
         self.payto_e = PayToEdit(self)
-        self.pubkey_e = QLineEdit()
-        self.pubkey_e.setMaxLength(39)  # Maximum length of an OP_RETURN message is 40. 1 byte for message length
         self.payto_e.addPasteButton(self.app)
         msg = _('Recipient of the funds.') + '\n\n' \
               + _(
@@ -1439,39 +1437,41 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.message_e.setMinimumWidth(700)
         grid.addWidget(self.message_e, 2, 1, 1, -1)
 
+        vis = self.config.get('enable_op_return_messages', False)
+        self.pubkey_e = FreezableLineEdit()
+        self.pubkey_e.setMaxLength(39)  # Maximum length of an OP_RETURN message is 40. 1 byte for message length
+        self.pubkey_e.setMinimumWidth(700)
+        msg = _('OP_RETURN message.') + '\n\n' \
+              + _('A short message to be encoded in a null pubkey') + ' ' \
+              + _(
+            'Note that this is not an intented feature of Ravencoin and may be removed in the future.') + '\n\n' \
+              + _('This will increase your fee slightly.')
+        self.pubkey_label = HelpLabel(_('OP_RETURN Message'), msg)
+        grid.addWidget(self.pubkey_label, 3, 0)
+        self.pubkey_label.setVisible(vis)
+        self.pubkey_e.setVisible(vis)
+        grid.addWidget(self.pubkey_e, 3, 1, 1, -1)
+
         msg = _('Amount to be sent.') + '\n\n' \
               + _('The amount will be displayed in red if you do not have enough funds in your wallet.') + ' ' \
               + _(
             'Note that if you have frozen some of your addresses, the available funds will be lower than your total balance.') + '\n\n' \
               + _('Keyboard shortcut: type "!" to send all your coins.')
         amount_label = HelpLabel(_('Amount'), msg)
-        grid.addWidget(amount_label, 3, 0)
-        grid.addWidget(self.amount_e, 3, 1)
+        grid.addWidget(amount_label, 4, 0)
+        grid.addWidget(self.amount_e, 4, 1)
 
         self.fiat_send_e = AmountEdit(self.fx.get_currency if self.fx else '')
         if not self.fx or not self.fx.is_enabled():
             self.fiat_send_e.setVisible(False)
-        grid.addWidget(self.fiat_send_e, 3, 2)
+        grid.addWidget(self.fiat_send_e, 4, 2)
         self.amount_e.frozen.connect(
             lambda: self.fiat_send_e.setFrozen(self.amount_e.isReadOnly()))
-
-        vis = self.config.get('enable_op_return_messages', False)
-
-        msg = _('OP_RETURN message.') + '\n\n' \
-              + _('A short message to be encoded in a null pubkey') + ' ' \
-              + _(
-            'Note that this is not an intented feature of Ravencoin and may be removed in the future.') + '\n\n' \
-              + _('This will increase your fee slightly.')
-        self.pubkey_label = HelpLabel(_('Pubkey Message'), msg)
-        grid.addWidget(self.pubkey_label, 7, 0)
-        self.pubkey_label.setVisible(vis)
-        self.pubkey_e.setVisible(vis)
-        grid.addWidget(self.pubkey_e, 7, 1)
 
         self.max_button = EnterButton(_("Max"), self.spend_max)
         self.max_button.setFixedWidth(100)
         self.max_button.setCheckable(True)
-        grid.addWidget(self.max_button, 3, 3)
+        grid.addWidget(self.max_button, 4, 3)
 
         self.save_button = EnterButton(_("Save"), self.do_save_invoice)
         self.send_button = EnterButton(_("Pay") + "...", self.do_pay)
@@ -1708,7 +1708,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             else:
                 outputs = self.read_outputs()
                 pubkey_msg = self.pubkey_e.text()
-                if pubkey_msg != '' and len(pubkey_msg) < 256:
+                if pubkey_msg != '' and len(pubkey_msg) < 40:
                     outputs.append(
                         PartialTxOutput(
                             value=RavenValue(),
