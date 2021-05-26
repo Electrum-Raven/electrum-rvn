@@ -341,6 +341,20 @@ class SettingsDialog(WindowModalDialog):
         outrounding_cb.stateChanged.connect(on_outrounding)
         tx_widgets.append((outrounding_cb, None))
 
+        def on_msgs(x):
+            self.config.set_key('tx_custom_message', bool(x))
+        enable_tx_custom_message = bool(self.config.get('tx_custom_message', False))
+        tx_custom_message = QCheckBox(_('Enable null pubkey messages'))
+        tx_custom_message.setToolTip(
+            _('Add the ability to add an invalid pubkey to a transaction') + '\n' +
+            _('that has been encoded with a short message.') + '\n' +
+            _('This is not typical Ravencoin behavior and these messages') + '\n' +
+            _('may be pruned from the chain in the future.') + '\n' +
+            _('This will increase your transaction size and therefore your fee.'))
+        tx_custom_message.setChecked(enable_tx_custom_message)
+        tx_custom_message.stateChanged.connect(on_msgs)
+        tx_widgets.append((tx_custom_message, None))
+
         block_explorers = sorted(util.block_explorer_info().keys())
         BLOCK_EX_CUSTOM_ITEM = _("Custom URL")
         if BLOCK_EX_CUSTOM_ITEM in block_explorers:  # malicious translation?

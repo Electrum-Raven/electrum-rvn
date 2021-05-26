@@ -28,10 +28,11 @@ import re
 import time
 import datetime
 from datetime import date
-from typing import TYPE_CHECKING, Tuple, Dict, NamedTuple, Optional
+from typing import TYPE_CHECKING, Tuple, Dict, Optional
 import threading
 from enum import IntEnum
 from decimal import Decimal
+from recordclass import RecordClass
 
 from PyQt5.QtGui import QMouseEvent, QFont, QBrush, QColor
 from PyQt5.QtCore import (Qt, QPersistentModelIndex, QModelIndex, QAbstractItemModel,
@@ -116,7 +117,7 @@ def get_item_key(tx_item):
     return tx_item.txid if tx_item.txid else tx_item.payment_hash
 
 
-class HistoryNodeData(NamedTuple):
+class HistoryNodeData(RecordClass):
     lightning: bool
     timestamp: Optional[int]
     type: Optional[str]
@@ -128,12 +129,18 @@ class HistoryNodeData(NamedTuple):
     balance: Satoshis
     fiat_value: Optional[Fiat]
     fiat_default: bool
-    acqu_price: Optional[Fiat]
+    acquisition_price: Optional[Fiat]
     fiat_gain: Optional[Fiat]
     payment_hash: str
     height: int
     channel_id: Optional[str]
     preimage: Optional[str]
+    fee: Optional[Satoshis]
+    fiat_currency: Optional[str]
+    fiat_rate: Optional[Fiat]
+    fiat_fee: Optional[Fiat]
+    capital_gain: Optional[Fiat]
+
 
 
 class HistoryNode(CustomNode):
@@ -182,7 +189,7 @@ class HistoryNode(CustomNode):
                 HistoryColumns.FIAT_VALUE:
                     tx_item.fiat_value,
                 HistoryColumns.FIAT_ACQ_PRICE:
-                    tx_item.acqu_price,
+                    tx_item.acquisition_price,
                 HistoryColumns.FIAT_CAP_GAINS:
                     tx_item.fiat_gain,
                 HistoryColumns.TXID: tx_hash if not is_lightning else None,
@@ -239,9 +246,9 @@ class HistoryNode(CustomNode):
             value_str = window.fx.format_fiat(tx_item.fiat_value.value)
             return QVariant(value_str)
         elif col == HistoryColumns.FIAT_ACQ_PRICE and \
-                tx_item.amount < 0 and tx_item.acqu_price:
+                tx_item.amount < 0 and tx_item.acquisition_price:
             # fixme: should use is_mine
-            acq = tx_item.acqu_price.value
+            acq = tx_item.acquisition_price.value
             return QVariant(window.fx.format_fiat(acq))
         elif col == HistoryColumns.FIAT_CAP_GAINS and tx_item.fiat_gain:
             cg = tx_item.fiat_gain.value
@@ -269,7 +276,7 @@ class HistoryModel(CustomModel, Logger):
 
     def update_label(self, index):
         tx_item = index.internalPointer().get_data()
-        tx_item['label'] = self.parent.wallet.get_label_for_txid(get_item_key(tx_item))
+        tx_item.label = self.parent.wallet.get_label_for_txid(get_item_key(tx_item))
         topLeft = bottomRight = self.createIndex(index.row(), HistoryColumns.DESCRIPTION)
         self.dataChanged.emit(topLeft, bottomRight, [Qt.DisplayRole])
         self.parent.utxo_list.update()
@@ -387,12 +394,16 @@ class HistoryModel(CustomModel, Logger):
             type = tx_item.get('type')
             channel_id = tx_item.get('channel_id')
             preimage = tx_item.get('preimage')
+            fee = tx_item.get('fee')
+            fiat_currency = tx_item.get('fiat_currency'),
+            fiat_rate = tx_item.get('fiat_rate'),
+            fiat_fee = tx_item.get('fiat_fee'),
+            capital_gain = tx_item.get('capital_gain')
 
             if value.rvn_value != 0:
                 asset_name = None
                 amount = value.rvn_value
                 balance = tx_item['balance'].rvn_value
-
                 node_data = HistoryNodeData(
                     lightning=lightning,
                     timestamp=timestamp,
@@ -404,13 +415,18 @@ class HistoryModel(CustomModel, Logger):
                     balance=balance,
                     fiat_value=fiat_value,
                     fiat_default=fiat_default,
-                    acqu_price=acqu_price,
+                    acquisition_price=acqu_price,
                     fiat_gain=fiat_gain,
                     payment_hash=payment_hash,
                     height=height,
                     type=type,
                     channel_id=channel_id,
-                    preimage=preimage
+                    preimage=preimage,
+                    fee=fee,
+                    fiat_currency=fiat_currency,
+                    fiat_rate=fiat_rate,
+                    fiat_fee=fiat_fee,
+                    capital_gain=capital_gain
                 )
                 self.add_history_node(node_data, parents, tx_item)
 
@@ -434,13 +450,18 @@ class HistoryModel(CustomModel, Logger):
                     balance=balance,
                     fiat_value=fiat_value,
                     fiat_default=fiat_default,
-                    acqu_price=acqu_price,
+                    acquisition_price=acqu_price,
                     fiat_gain=fiat_gain,
                     payment_hash=payment_hash,
                     height=height,
                     type=type,
                     channel_id=channel_id,
-                    preimage=preimage
+                    preimage=preimage,
+                    fee=fee,
+                    fiat_currency=fiat_currency,
+                    fiat_rate=fiat_rate,
+                    fiat_fee=fiat_fee,
+                    capital_gain=capital_gain
                 )
                 self.add_history_node(node_data, parents, tx_item)
 
@@ -484,12 +505,13 @@ class HistoryModel(CustomModel, Logger):
 
     def update_fiat(self, idx):
         tx_item = idx.internalPointer().get_data()
-        txid = tx_item['txid']
-        fee = tx_item.get('fee')
-        value = tx_item['value'].value
+        txid = tx_item.txid
+        fee = tx_item.fee
+        value = tx_item.amount.value
         fiat_fields = self.parent.wallet.get_tx_item_fiat(
             tx_hash=txid, amount_sat=value, fx=self.parent.fx, tx_fee=fee.value if fee else None)
-        tx_item.update(fiat_fields)
+        for key in fiat_fields:
+            setattr(tx_item, key, fiat_fields[key])
         self.dataChanged.emit(idx, idx, [Qt.DisplayRole, Qt.ForegroundRole])
 
     def update_tx_mined_status(self, tx_hash: str, tx_mined_info: TxMinedInfo):
@@ -636,6 +658,11 @@ class AssetHistoryModel(HistoryModel):
             type = tx_item.get('type')
             channel_id = tx_item.get('channel_id')
             preimage = tx_item.get('preimage')
+            fee = tx_item.get('fee')
+            fiat_currency = tx_item.get('fiat_currency'),
+            fiat_rate = tx_item.get('fiat_rate'),
+            fiat_fee = tx_item.get('fiat_fee'),
+            capital_gain = tx_item.get('capital_gain')
 
             for asset in value.assets:
 
@@ -657,13 +684,18 @@ class AssetHistoryModel(HistoryModel):
                     balance=balance,
                     fiat_value=fiat_value,
                     fiat_default=fiat_default,
-                    acqu_price=acqu_price,
+                    acquisition_price=acqu_price,
                     fiat_gain=fiat_gain,
                     payment_hash=payment_hash,
                     height=height,
                     type=type,
                     channel_id=channel_id,
-                    preimage=preimage
+                    preimage=preimage,
+                    fee=fee,
+                    fiat_currency=fiat_currency,
+                    fiat_rate=fiat_rate,
+                    fiat_fee=fiat_fee,
+                    capital_gain=capital_gain
                 )
                 self.add_history_node(node_data, parents, tx_item)
 
@@ -902,7 +934,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
 
     def on_edited(self, idx, edit_key, *, text):
         index = self.model().mapToSource(idx)
-        tx_item = index.internalPointer().get_data()
+        tx_item = index.internalPointer().get_data()  # type: HistoryNodeData
         column = index.column()
         key = get_item_key(tx_item)
         if column == HistoryColumns.DESCRIPTION:
@@ -910,8 +942,8 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
                 self.hm.update_label(index)
                 self.parent.update_completions()
         elif column == HistoryColumns.FIAT_VALUE:
-            self.wallet.set_fiat_value(key, self.parent.fx.ccy, text, self.parent.fx, tx_item['value'].value)
-            value = tx_item['value'].value
+            self.wallet.set_fiat_value(key, self.parent.fx.ccy, text, self.parent.fx, tx_item.amount.value)
+            value = tx_item.amount
             if value is not None:
                 self.hm.update_fiat(index)
         else:

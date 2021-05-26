@@ -649,9 +649,20 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         for o in self.tx.outputs():
             addr, v = o.get_ui_address_str(), o.value
             cursor.insertText(addr, text_format(addr))
-            if v is not None:
+            if v != RavenValue():
                 cursor.insertText('\t', ext)
                 cursor.insertText(format_amount(v), ext)
+            elif 'SCRIPT' in addr:
+                h = addr.split(" ")[1]
+                b = bytes.fromhex(h)
+                start = 2 if b[1] == len(b[2:]) else 1  # First byte is always opcode
+                b = b[start:]
+                b1 = bytearray([byte for byte in b if byte >= 32 and byte != 127 and byte != 255])
+                if b1:
+                    cursor.insertBlock()
+                    cursor.insertText('ascii: ', ext)
+                    cursor.insertText(b1.decode('ascii'), ext)
+
             cursor.insertBlock()
 
         self.txo_color_recv.legend_label.setVisible(tf_used_recv)

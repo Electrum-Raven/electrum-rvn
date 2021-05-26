@@ -1092,7 +1092,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         d.exec_()
 
     def hide_asset(self, asset):
-        self.asset_blacklist.append('^'+asset+'$')
+        self.asset_blacklist.append('^' + asset + '$')
         self.config.set_key('asset_blacklist', self.asset_blacklist, True)
         self.asset_list.update()
         self.history_model.refresh('Marked asset as spam')
@@ -1415,6 +1415,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         from .paytoedit import PayToEdit
         self.amount_e = BTCAmountEdit(self.get_decimal_point)
         self.payto_e = PayToEdit(self)
+        self.pubkey_e = QLineEdit()
+        self.pubkey_e.setMaxLength(255)
         self.payto_e.addPasteButton(self.app)
         msg = _('Recipient of the funds.') + '\n\n' \
               + _(
@@ -1452,6 +1454,19 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         grid.addWidget(self.fiat_send_e, 3, 2)
         self.amount_e.frozen.connect(
             lambda: self.fiat_send_e.setFrozen(self.amount_e.isReadOnly()))
+
+        hide_pub = self.config.get('tx_custom_message', False)
+
+        msg = _('Null pubkey message.') + '\n\n' \
+              + _('A short message to be encoded in a null pubkey') + ' ' \
+              + _(
+            'Note that this is not an intented feature of Ravencoin and may be removed in the future.') + '\n\n' \
+              + _('This will increase your fee slightly.')
+        self.pubkey_label = HelpLabel(_('Pubkey Message'), msg)
+        grid.addWidget(self.pubkey_label, 7, 0)
+        self.pubkey_label.setVisible(hide_pub)
+        self.pubkey_e.setVisible(hide_pub)
+        grid.addWidget(self.pubkey_e, 7, 1)
 
         self.max_button = EnterButton(_("Max"), self.spend_max)
         self.max_button.setFixedWidth(100)
@@ -1692,6 +1707,16 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                 return invoice
             else:
                 outputs = self.read_outputs()
+                pubkey_msg = self.pubkey_e.text()
+                if pubkey_msg != '' and len(pubkey_msg) < 256:
+                    outputs.append(
+                        PartialTxOutput(
+                            value=RavenValue(),
+                            scriptpubkey=
+                            b'\x6a' +
+                            len(pubkey_msg).to_bytes(1, 'big', signed=False) +
+                            pubkey_msg.encode('ascii')
+                        ))
                 if self.check_send_tab_onchain_outputs_and_show_errors(outputs):
                     return
                 message = self.message_e.text()
@@ -3300,6 +3325,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.history_model.refresh('Changed asset white or black list', True)
         if d.need_restart:
             self.show_warning(_('Please restart Electrum to activate the new GUI settings'), title=_('Success'))
+        hide_pub = self.config.get('tx_custom_message', False)
+        self.pubkey_label.setVisible(hide_pub)
+        self.pubkey_e.setVisible(hide_pub)
 
     def closeEvent(self, event):
         # note that closeEvent is NOT called if the user quits with Ctrl-C
@@ -3335,17 +3363,17 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
     def logview_dialog(self):
         from electrum.logging import get_logfile_path, electrum_logger
 
-        def watch_file(fn,logviewer):
-        # poor man's tail
-           if os.path.exists(fn):
-              mtime = os.path.getmtime(fn)
-              if mtime > self.logfile_mtime:
-                 # file modified
-                 self.logfile_mtime = mtime
-                 logviewer.clear()
-                 with open(fn,"r") as f:
-                    for line in f:
-                       logviewer.append(line.partition('Z |')[2].lstrip(' ').rstrip('\n'))
+        def watch_file(fn, logviewer):
+            # poor man's tail
+            if os.path.exists(fn):
+                mtime = os.path.getmtime(fn)
+                if mtime > self.logfile_mtime:
+                    # file modified
+                    self.logfile_mtime = mtime
+                    logviewer.clear()
+                    with open(fn, "r") as f:
+                        for line in f:
+                            logviewer.append(line.partition('Z |')[2].lstrip(' ').rstrip('\n'))
 
         d = WindowModalDialog(self, _('Log Viewer'))
         d.setMinimumSize(610, 290)
@@ -3353,16 +3381,17 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.logviewer = QTextEdit()
         self.logviewer.setAcceptRichText(False)
         self.logviewer.setReadOnly(True)
-        self.logviewer.setPlainText(_("Enable 'Write logs to file' in Preferences -> General and restart Electrum-RVN to view logs here"))
+        self.logviewer.setPlainText(
+            _("Enable 'Write logs to file' in Preferences -> General and restart Electrum-RVN to view logs here"))
         layout.addWidget(self.logviewer, 1, 1)
         logfile = get_logfile_path()
         self.logtimer = QTimer(self)
         if logfile is not None:
-           load_logfile = partial(watch_file,logfile,self.logviewer)
-           self.logfile_mtime = 0
-           load_logfile()
-           self.logtimer.timeout.connect(load_logfile)
-           self.logtimer.start(2500)
+            load_logfile = partial(watch_file, logfile, self.logviewer)
+            self.logfile_mtime = 0
+            load_logfile()
+            self.logtimer.timeout.connect(load_logfile)
+            self.logtimer.start(2500)
         d.exec_()
         self.logtimer.stop()
 
