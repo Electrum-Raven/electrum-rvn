@@ -1416,7 +1416,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.amount_e = BTCAmountEdit(self.get_decimal_point)
         self.payto_e = PayToEdit(self)
         self.pubkey_e = QLineEdit()
-        self.pubkey_e.setMaxLength(255)
+        self.pubkey_e.setMaxLength(39)  # Maximum length of an OP_RETURN message is 40. 1 byte for message length
         self.payto_e.addPasteButton(self.app)
         msg = _('Recipient of the funds.') + '\n\n' \
               + _(
