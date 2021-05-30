@@ -376,6 +376,7 @@ class TrezorPlugin(HW_PluginBase):
         client = self.get_client(keystore)
         client.show_address(address_path, script_type, multisig)
 
+    # TODO: Only RVN
     def tx_inputs(self, tx: Transaction, *, for_sig=False, keystore: 'TrezorKeyStore' = None):
         inputs = []
         for txin in tx.inputs():
@@ -405,7 +406,7 @@ class TrezorPlugin(HW_PluginBase):
                 prev_index = txin.prevout.out_idx
 
             if txin.value_sats() is not None:
-                txinputtype.amount = txin.value_sats()
+                txinputtype.amount = txin.value_sats().rvn_value.value
             txinputtype.prev_hash = prev_hash
             txinputtype.prev_index = prev_index
 
@@ -427,6 +428,7 @@ class TrezorPlugin(HW_PluginBase):
             signatures=[b''] * len(pubkeys),
             m=m)
 
+    # TODO: Currently only Ravencoin
     def tx_outputs(self, tx: PartialTransaction, *, keystore: 'TrezorKeyStore'):
 
         def create_output_by_derivation():
@@ -440,14 +442,14 @@ class TrezorPlugin(HW_PluginBase):
             assert full_path
             txoutputtype = TxOutputType(
                 multisig=multisig,
-                amount=txout.value,
+                amount=txout.value.rvn_value.value,
                 address_n=full_path,
                 script_type=script_type)
             return txoutputtype
 
         def create_output_by_address():
             txoutputtype = TxOutputType()
-            txoutputtype.amount = txout.value
+            txoutputtype.amount = txout.value.rvn_value.value
             if address:
                 txoutputtype.script_type = OutputScriptType.PAYTOADDRESS
                 txoutputtype.address = address

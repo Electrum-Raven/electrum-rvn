@@ -81,7 +81,7 @@ class Exception_Window(BaseCrashReporter, QWidget, MessageBoxMixin, Logger):
                                                         "The report will be visible on the public issue tracker."))
         main_box.addWidget(self.description_textfield)
 
-        main_box.addWidget(QLabel(BaseCrashReporter.ASK_CONFIRM_SEND))
+        # main_box.addWidget(QLabel(BaseCrashReporter.ASK_CONFIRM_SEND))
 
         buttons = QHBoxLayout()
 

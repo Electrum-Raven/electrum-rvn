@@ -40,7 +40,7 @@ from functools import partial
 from collections import defaultdict
 from numbers import Number
 from decimal import Decimal
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union, NamedTuple, Sequence, Dict, Any, Set
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union, NamedTuple, Sequence, Dict, Any, Set, Iterable
 from abc import ABC, abstractmethod
 import itertools
 import threading
@@ -192,7 +192,7 @@ async def sweep(
         raise Exception(_('Not enough funds on address.') + '\nTotal: %d satoshis\nFee: %d' % (total, fee))
     if total - fee < dust_threshold(network):
         raise Exception(_('Not enough funds on address.') + '\nTotal: %d satoshis\nFee: %d\nDust Threshold: %d' % (
-        total, fee, dust_threshold(network)))
+            total, fee, dust_threshold(network)))
 
     outputs = [PartialTxOutput(scriptpubkey=bfh(ravencoin.address_to_script(to_address)),
                                value=total - fee)]
@@ -677,8 +677,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
             is_lightning_funding_tx=is_lightning_funding_tx,
         )
 
-    # TODO: RVN only
-    def get_spendable_coins(self, domain, *, nonlocal_only=False) -> Sequence[PartialTxInput]:
+    def get_spendable_coins(self, domain, *, nonlocal_only=False, asset: Optional[str] = None) -> Sequence[PartialTxInput]:
         confirmed_only = self.config.get('confirmed_only', False)
         with self._freeze_lock:
             frozen_addresses = self._frozen_addresses.copy()
@@ -688,7 +687,12 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                                confirmed_funding_only=confirmed_only,
                                nonlocal_only=nonlocal_only)
         # Assets utxos cannot be included in normal RVN transactions
-        utxos = [utxo for utxo in utxos if (not self.is_frozen_coin(utxo) and len(utxo.value_sats().assets) == 0)]
+        utxos = [utxo for utxo in utxos if (not self.is_frozen_coin(utxo) and  # Add the utxo if it is not frozen and
+                                            (
+                                            (not asset and len(utxo.value_sats().assets) == 0) or  # Its not an asset if we are looking or rvn or
+                                            asset in utxo.value_sats().assets.keys()  # It has the asset if we are looking for the asset
+                                            )
+                                            )]
         return utxos
 
     @abstractmethod
@@ -1497,7 +1501,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                 return True
         return False
 
-    def set_frozen_state_of_coins(self, utxos: Sequence[str], freeze: bool) -> None:
+    def set_frozen_state_of_coins(self, utxos: Iterable[str], freeze: bool) -> None:
         """Set frozen state of the utxos to FREEZE, True or False"""
         # basic sanity check that input is not garbage: (see if raises)
         [TxOutpoint.from_str(utxo) for utxo in utxos]
