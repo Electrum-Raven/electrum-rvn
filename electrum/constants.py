@@ -26,6 +26,8 @@
 import os
 import json
 
+from typing import NamedTuple, Union
+
 from .util import inv_dict
 from . import ravencoin
 
@@ -44,6 +46,30 @@ GIT_REPO_URL = "https://github.com/Electrum-RVN-SIG/electrum-ravencoin"
 GIT_REPO_ISSUES_URL = "https://github.com/Electrum-RVN-SIG/electrum-ravencoin/issues"
 BIP39_WALLET_FORMATS = read_json('bip39_wallet_formats.json', [])
 
+
+class BurnAmounts(NamedTuple):
+    IssueAssetBurnAmount: Union[int, float]
+    ReissueAssetBurnAmount: Union[int, float]
+    IssueSubAssetBurnAmount: Union[int, float]
+    IssueUniqueAssetBurnAmount: Union[int, float]
+    IssueMsgChannelAssetBurnAmount: Union[int, float]
+    IssueQualifierAssetBurnAmount: Union[int, float]
+    IssueSubQualifierAssetBurnAmount: Union[int, float]
+    IssueRestrictedAssetBurnAmount: Union[int, float]
+    AddNullQualifierTagBurnAmount: Union[int, float]
+
+
+class BurnAddresses(NamedTuple):
+    IssueAssetBurnAddress: str
+    ReissueAssetBurnAddress: str
+    IssueSubAssetBurnAddress: str
+    IssueUniqueAssetBurnAddress: str
+    IssueMsgChannelAssetBurnAddress: str
+    IssueQualifierAssetBurnAddress: str
+    IssueSubQualifierAssetBurnAddress: str
+    IssueRestrictedAssetBurnAddress: str
+    AddNullQualifierTagBurnAddress: str
+    GlobalBurnAddress: str
 
 class AbstractNet:
     GENESIS = None
@@ -90,6 +116,31 @@ class RavencoinMainnet(AbstractNet):
     XPUB_HEADERS_INV = inv_dict(XPUB_HEADERS)
     BIP44_COIN_TYPE = 175
 
+    BURN_AMOUNTS = BurnAmounts(
+        IssueAssetBurnAmount=500,
+        ReissueAssetBurnAmount=100,
+        IssueSubAssetBurnAmount=100,
+        IssueUniqueAssetBurnAmount=5,
+        IssueMsgChannelAssetBurnAmount=100,
+        IssueQualifierAssetBurnAmount=1000,
+        IssueSubQualifierAssetBurnAmount=100,
+        IssueRestrictedAssetBurnAmount=1500,
+        AddNullQualifierTagBurnAmount=0.1
+    )
+
+    BURN_ADDRESSES = BurnAddresses(
+        IssueAssetBurnAddress='RXissueAssetXXXXXXXXXXXXXXXXXhhZGt',
+        ReissueAssetBurnAddress='RXReissueAssetXXXXXXXXXXXXXXVEFAWu',
+        IssueSubAssetBurnAddress='RXissueSubAssetXXXXXXXXXXXXXWcwhwL',
+        IssueUniqueAssetBurnAddress='RXissueUniqueAssetXXXXXXXXXXWEAe58',
+        IssueMsgChannelAssetBurnAddress='RXissueMsgChanneLAssetXXXXXXSjHvAY',
+        IssueQualifierAssetBurnAddress='RXissueQuaLifierXXXXXXXXXXXXUgEDbC',
+        IssueSubQualifierAssetBurnAddress='RXissueSubQuaLifierXXXXXXXXXVTzvv5',
+        IssueRestrictedAssetBurnAddress='RXissueRestrictedXXXXXXXXXXXXzJZ1q',
+        AddNullQualifierTagBurnAddress='RXaddTagBurnXXXXXXXXXXXXXXXXZQm5ya',
+        GlobalBurnAddress='RXBurnXXXXXXXXXXXXXXXXXXXXXXWUo9FV'
+    )
+
 
 class RavencoinTestnet(AbstractNet):
     TESTNET = True
@@ -120,6 +171,31 @@ class RavencoinTestnet(AbstractNet):
     }
     XPUB_HEADERS_INV = inv_dict(XPUB_HEADERS)
     BIP44_COIN_TYPE = 175
+
+    BURN_AMOUNTS = BurnAmounts(
+        IssueAssetBurnAmount=500,
+        ReissueAssetBurnAmount=100,
+        IssueSubAssetBurnAmount=100,
+        IssueUniqueAssetBurnAmount=5,
+        IssueMsgChannelAssetBurnAmount=100,
+        IssueQualifierAssetBurnAmount=1000,
+        IssueSubQualifierAssetBurnAmount=100,
+        IssueRestrictedAssetBurnAmount=1500,
+        AddNullQualifierTagBurnAmount=0.1
+    )
+
+    BURN_ADDRESSES = BurnAddresses(
+        IssueAssetBurnAddress='n1issueAssetXXXXXXXXXXXXXXXXWdnemQ',
+        ReissueAssetBurnAddress='n1ReissueAssetXXXXXXXXXXXXXXWG9NLd',
+        IssueSubAssetBurnAddress='n1issueSubAssetXXXXXXXXXXXXXbNiH6v',
+        IssueUniqueAssetBurnAddress='n1issueUniqueAssetXXXXXXXXXXS4695i',
+        IssueMsgChannelAssetBurnAddress='n1issueMsgChanneLAssetXXXXXXT2PBdD',
+        IssueQualifierAssetBurnAddress='n1issueQuaLifierXXXXXXXXXXXXUysLTj',
+        IssueSubQualifierAssetBurnAddress='n1issueSubQuaLifierXXXXXXXXXYffPLh',
+        IssueRestrictedAssetBurnAddress='n1issueRestrictedXXXXXXXXXXXXZVT9V',
+        AddNullQualifierTagBurnAddress='n1addTagBurnXXXXXXXXXXXXXXXXX5oLMH',
+        GlobalBurnAddress='n1BurnXXXXXXXXXXXXXXXXXXXXXXU1qejP'
+    )
 
 
 # don't import net directly, import the module instead (so that net is singleton)
