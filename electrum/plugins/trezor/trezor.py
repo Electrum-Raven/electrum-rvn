@@ -483,6 +483,7 @@ class TrezorPlugin(HW_PluginBase):
 
         return outputs
 
+    # TODO: RVN Only
     def electrum_tx_to_txtype(self, tx: Optional[Transaction]):
         t = TransactionType()
         if tx is None:
@@ -493,7 +494,7 @@ class TrezorPlugin(HW_PluginBase):
         t.lock_time = tx.locktime
         t.inputs = self.tx_inputs(tx)
         t.bin_outputs = [
-            TxOutputBinType(amount=o.value, script_pubkey=o.scriptpubkey)
+            TxOutputBinType(amount=o.value.rvn_value.value, script_pubkey=o.scriptpubkey)
             for o in tx.outputs()
         ]
         return t

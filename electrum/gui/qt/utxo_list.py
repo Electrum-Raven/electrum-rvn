@@ -32,7 +32,7 @@ from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont
 from PyQt5.QtWidgets import QAbstractItemView, QMenu, QLabel, QHBoxLayout
 
 from electrum.i18n import _
-from electrum.transaction import PartialTxInput
+from electrum.transaction import PartialTxInput, RavenValue
 
 from .util import MyTreeView, ColorScheme, MONOSPACE_FONT, EnterButton
 
@@ -86,10 +86,17 @@ class UTXOList(MyTreeView):
         if self._spend_set is not None:
             coins = [self._utxo_dict[x] for x in self._spend_set]
             coins = self._filter_frozen_coins(coins)
-            amount = sum(x.value_sats() for x in coins)
-            amount_str = self.parent.format_amount_and_units(amount)
+            amount = sum([x.value_sats() for x in coins], RavenValue())
+            amt = ''
+            rvn = amount.rvn_value
+            assets = amount.assets
+            amt += self.parent.format_amount_and_units(rvn)
+            if assets:
+                amt += ', '
+                assets = ['{}: {}'.format(asset, self.parent.config.format_amount(val)) for asset, val in assets.items()]
+                amt += ', '.join(assets)
             num_outputs_str = _("{} outputs available ({} total)").format(len(coins), len(utxos))
-            self.parent.set_coincontrol_msg(_("Coin control active") + f': {num_outputs_str}, {amount_str}')
+            self.parent.set_coincontrol_msg(_("Coin control active") + f': {num_outputs_str}, {amt}')
         else:
             self.parent.set_coincontrol_msg(None)
 
