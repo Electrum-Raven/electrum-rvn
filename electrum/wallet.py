@@ -1229,6 +1229,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
     def dust_threshold(self):
         return dust_threshold(self.network)
 
+    # TODO: Currently RVN Only
     def get_unconfirmed_base_tx_for_batching(self) -> Optional[Transaction]:
         candidate = None
         for hist_item in self.get_history():
@@ -1240,7 +1241,7 @@ class Abstract_Wallet(AddressSynchronizer, ABC):
                                                         TX_HEIGHT_LOCAL):
                 continue
             # tx should be "outgoing" from wallet
-            if hist_item.delta >= 0:
+            if hist_item.delta.rvn_value.value >= 0:
                 continue
             tx = self.db.get_transaction(hist_item.txid)
             if not tx:
