@@ -82,7 +82,7 @@ from electrum.lnutil import ln_dummy_address, extract_nodeid, ConnStringFormatEr
 from electrum.lnaddr import lndecode, LnDecodeException, LnAddressError
 
 from .exception_window import Exception_Hook
-from .amountedit import AmountEdit, BTCAmountEdit, FreezableLineEdit, FeerateEdit
+from .amountedit import AmountEdit, RVNAmountEdit, FreezableLineEdit, FeerateEdit, PayToAmountEdit
 from .qrcodewidget import QRCodeWidget, QRDialog
 from .qrtextedit import ShowQRTextEdit, ScanQRTextEdit
 from .transaction_dialog import show_transaction
@@ -186,6 +186,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
         self.asset_blacklist = self.wallet.config.get('asset_blacklist', [])
         self.asset_whitelist = self.wallet.config.get('asset_whitelist', [])
+
+        # Tracks sendable things
+        self.send_options = []  # type: Dict[str]
 
         self.setup_exception_hook()
 
@@ -1064,6 +1067,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.invoice_list.update()
         # self.channels_list.update_rows.emit(wallet)
         self.update_completions()
+        self.refresh_send_tab()
 
     # def create_channels_tab(self):
     #     self.channels_list = ChannelsList(self)
@@ -1123,7 +1127,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         grid.addWidget(self.receive_message_e, 0, 1, 1, 4)
         self.receive_message_e.textChanged.connect(self.update_receive_qr)
 
-        self.receive_amount_e = BTCAmountEdit(self.get_decimal_point)
+        self.receive_amount_e = RVNAmountEdit(self.get_decimal_point)
         grid.addWidget(QLabel(_('Requested amount')), 1, 0)
         grid.addWidget(self.receive_amount_e, 1, 1)
         self.receive_amount_e.textChanged.connect(self.update_receive_qr)
@@ -1405,6 +1409,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.receive_address_e.setStyleSheet("")
             self.receive_address_e.setToolTip("")
 
+    def refresh_send_tab(self):
+        self.to_send_combo.clear()
+        balance = sum(self.wallet.get_balance(), RavenValue())
+        self.send_options = ['RVN'] + sorted([asset for asset, bal in balance.assets.items() if bal != 0])
+        self.to_send_combo.addItems(self.send_options)
+
     def create_send_tab(self):
         # A 4-column grid layout.  All the stretch is in the last column.
         # The exchange rate plugin adds a fiat widget in column 2
@@ -1413,7 +1423,16 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         grid.setColumnStretch(3, 1)
 
         from .paytoedit import PayToEdit
-        self.amount_e = BTCAmountEdit(self.get_decimal_point)
+
+        # Let user choose to send RVN or Asset
+        self.to_send_combo = QComboBox()
+        self.refresh_send_tab()
+
+        def label():
+            return self.send_options[self.to_send_combo.currentIndex()]
+        self.amount_e = PayToAmountEdit(label)
+        self.amount_e = RVNAmountEdit(self.get_decimal_point)
+
         self.payto_e = PayToEdit(self)
         self.payto_e.addPasteButton(self.app)
         msg = _('Recipient of the funds.') + '\n\n' \
@@ -1460,6 +1479,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         amount_label = HelpLabel(_('Amount'), msg)
         grid.addWidget(amount_label, 4, 0)
         grid.addWidget(self.amount_e, 4, 1)
+
+        #grid.addWidget(self.to_send_combo, 4, 2)
 
         self.fiat_send_e = AmountEdit(self.fx.get_currency if self.fx else '')
         if not self.fx or not self.fx.is_enabled():
@@ -3495,7 +3516,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         output_amount = QLabel('')
         grid.addWidget(QLabel(_('Output amount') + ':'), 2, 0)
         grid.addWidget(output_amount, 2, 1)
-        fee_e = BTCAmountEdit(self.get_decimal_point)
+        fee_e = RVNAmountEdit(self.get_decimal_point)
         combined_fee = QLabel('')
         combined_feerate = QLabel('')
 
