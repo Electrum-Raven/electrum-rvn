@@ -23,18 +23,20 @@ Electrum Raven Wallet (RVN)
 
 **Electrum Raven (RVN)** is a lightweight wallet for Raven (RVN), designed for fast and secure transactions with low fees.  
 
-## Features  
+Features  
+=============
 - **Fast Transactions**: Raven’s blockchain ensures fast and efficient transactions.  
 - **Secure**: Multi-signature support and hardware wallet integration.  
 - **Lightweight**: Efficient and fast synchronization with the network.  
-- **Cross-Platform Support**: Available for Windows, macOS, and Linux.  
+- **Cross-Platform Support**: Available for Windows, macOS, and Linux. 
 
 
 License  
 =============
 
 This project is licensed under the MIT License. See the `LICENSE`_ for details.
-.. _LICENSE: https://github.com/Electrum-Ripple/electrum-xrp/blob/master/LICENCE
+
+.. _LICENSE: https://github.com/Electrum-Raven/electrum-rvn/blob/master/LICENCE
 
 
 Getting started
