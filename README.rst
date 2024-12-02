@@ -1,4 +1,4 @@
-Electrum - Lightweight Bitcoin client
+Electrum Raven Wallet (RVN)
 =====================================
 
 ::
@@ -21,14 +21,26 @@ Electrum - Lightweight Bitcoin client
 
 
 
+**Electrum Raven (RVN)** is a lightweight wallet for Raven (RVN), designed for fast and secure transactions with low fees.  
+
+## Features  
+- **Fast Transactions**: Raven’s blockchain ensures fast and efficient transactions.  
+- **Secure**: Multi-signature support and hardware wallet integration.  
+- **Lightweight**: Efficient and fast synchronization with the network.  
+- **Cross-Platform Support**: Available for Windows, macOS, and Linux.  
+
+
+License  
+=============
+
+This project is licensed under the MIT License. See the `LICENSE`_ for details.
+.. _LICENSE: https://github.com/Electrum-Ripple/electrum-xrp/blob/master/LICENCE
 
 
 Getting started
 ===============
 
-(*If you've come here looking to simply run Electrum,* `you may download it here`_.)
-
-.. _you may download it here: https://electrum.org/#download
+(*If you've come here looking to simply run Electrum RVN*)
 
 Electrum itself is pure Python, and so are most of the required dependencies,
 but not everything. The following sections describe how to run from source, but here
