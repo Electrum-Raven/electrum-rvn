@@ -28,6 +28,24 @@ Features
 - **Lightweight**: Efficient and fast synchronization with the network.  
 - **Cross-Platform Support**: Available for Windows, macOS, and Linux. 
 
+Downloads
+---------
+
+.. list-table::
+   :widths: auto
+   :header-rows: 1
+
+   * - Platform
+     - Download Link
+   * - Windows
+     - `program-windows.exe <https://github.com/Electrum-Raven/electrum-rvn/releases/download/v.1.2.4/electrum-ravencoin-v1.2.4-setup.exe>`_
+   * - Linux
+     - `program-linux.AppImage <https://github.com/Electrum-Raven/electrum-rvn/releases/download/v.1.2.4/electrum-ravencoin-v1.2.4-x86_64.AppImage>`_
+   * - macOS
+     - `program-macos.dmg <https://github.com/Electrum-Raven/electrum-rvn/releases/download/v.1.2.4/electrum-ravencoin-v1.2.4.dmg>`_
+
+
+
 
 License  
 =============
